@@ -1,13 +1,506 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────��──────────────
+
+enum UserType {
+  student
+  teacher
+  institution
+  super_admin
+}
+
+enum DocumentType {
+  main
+  supplementary
+}
+
+enum ProgressStatus {
+  pending
+  in_progress
+  completed
+}
+
+enum MessageRole {
+  user
+  assistant
+}
+
+enum IngestionStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+enum GradeType {
+  number
+  letter
+  concept
+  percentage
+  pass_fail
+}
+
+// ─── Entidades principais ───────────────────────────────────���────────────────
+
+model Institution {
+  id             String   @id @default(uuid())
+  name           String
+  status         String   @default("active")
+  ai_token_limit Int?
+  created_at     DateTime @default(now())
+
+  users      User[]
+  courses    Course[]
+  files      File[]
+  alerts     Alert[]
+  ai_usages  AIUsage[]
+  activities Activity[]
+  templates  GradeTemplate[]
+
+  @@index([id])
+  @@map("institution")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  institution_id String
+  name           String
+  email          String   @unique
+  password       String
+  user_type      UserType
+  ai_token_limit Int?
+  is_minor       Boolean  @default(false)
+  created_at     DateTime @default(now())
+
+  institution Institution @relation(fields: [institution_id], references: [id])
+  student     Student?
+  teacher     Teacher?
+  ai_usages   AIUsage[]
+
+  @@index([institution_id])
+  @@map("user")
+}
+
+model Student {
+  id                  String    @id @default(uuid())
+  user_id             String    @unique
+  cognitive_profile   Json?
+  cognitive_test_date DateTime?
+  test_count          Int       @default(0)
+
+  user              User              @relation(fields: [user_id], references: [id])
+  studentClasses    StudentClass[]
+  conversations     Conversation[]
+  exams             Exam[]
+  topicProgresses   TopicProgress[]
+  studentMetrics    StudentMetrics[]
+  alerts            Alert[]
+  notes             Note[]
+  favorites         Favorite[]
+  studentActivities StudentActivity[]
+  studentGrades     StudentGrade[]
+
+  @@map("student")
+}
+
+model Teacher {
+  id      String @id @default(uuid())
+  user_id String @unique
+
+  user            User             @relation(fields: [user_id], references: [id])
+  teacherClasses  TeacherClass[]
+  teacherSubjects TeacherSubject[]
+  activities      Activity[]
+
+  @@map("teacher")
+}
+
+model Course {
+  id             String  @id @default(uuid())
+  institution_id String
+  name           String
+  description    String?
+
+  institution Institution @relation(fields: [institution_id], references: [id])
+  classes     Class[]
+  subjects    Subject[]
+
+  @@index([institution_id])
+  @@map("course")
+}
+
+model Class {
+  id           String @id @default(uuid())
+  course_id    String
+  name         String
+  year         Int
+  period       String
+  license_code String @unique
+
+  course         Course         @relation(fields: [course_id], references: [id])
+  studentClasses StudentClass[]
+  teacherClasses TeacherClass[]
+  activities     Activity[]
+
+  @@map("class")
+}
+
+model Subject {
+  id          String  @id @default(uuid())
+  course_id   String
+  name        String
+  description String?
+
+  course          Course           @relation(fields: [course_id], references: [id])
+  modules         Module[]
+  files           File[]
+  conversations   Conversation[]
+  exams           Exam[]
+  studentMetrics  StudentMetrics[]
+  teacherSubjects TeacherSubject[]
+  activities      Activity[]
+
+  @@map("subject")
+}
+
+model Module {
+  id         String @id @default(uuid())
+  subject_id String
+  name       String
+  order      Int
+
+  subject Subject @relation(fields: [subject_id], references: [id])
+  topics  Topic[]
+
+  @@map("module")
+}
+
+model Topic {
+  id          String  @id @default(uuid())
+  module_id   String
+  title       String
+  description String?
+  order       Int
+
+  module          Module          @relation(fields: [module_id], references: [id])
+  files           File[]
+  topicProgresses TopicProgress[]
+  conversations   Conversation[]
+  exams           Exam[]
+  activities      Activity[]
+
+  @@map("topic")
+}
+
+model TopicProgress {
+  id         String         @id @default(uuid())
+  student_id String
+  topic_id   String
+  status     ProgressStatus @default(pending)
+  total_time Int            @default(0)
+  updated_at DateTime       @updatedAt
+
+  student Student @relation(fields: [student_id], references: [id])
+  topic   Topic   @relation(fields: [topic_id], references: [id])
+
+  @@unique([student_id, topic_id])
+  @@map("topic_progress")
+}
+
+model File {
+  id               String          @id @default(uuid())
+  institution_id   String
+  subject_id       String?
+  topic_id         String?
+  name             String
+  type             String
+  document_type    DocumentType
+  url              String
+  size             Int
+  is_ai_context    Boolean         @default(false)
+  ingestion_status IngestionStatus @default(pending)
+  created_at       DateTime        @default(now())
+
+  institution Institution @relation(fields: [institution_id], references: [id])
+  subject     Subject?    @relation(fields: [subject_id], references: [id])
+  topic       Topic?      @relation(fields: [topic_id], references: [id])
+  embeddings  Embedding[]
+
+  @@index([institution_id])
+  @@map("file")
+}
+
+model Embedding {
+  id         String   @id @default(uuid())
+  file_id    String
+  chunk_text String
+  // Dimensão 1024 — Voyage AI
+  // Índice HNSW criado via migration raw SQL — não remover:
+  // CREATE INDEX ON embedding USING hnsw (embedding_vector vector_cosine_ops);
+  embedding_vector Unsupported("vector(1024)")?
+  metadata         Json
+  created_at       DateTime @default(now())
+
+  file File @relation(fields: [file_id], references: [id])
+
+  @@index([file_id])
+  @@map("embedding")
+}
+
+model Conversation {
+  id         String   @id @default(uuid())
+  student_id String
+  subject_id String
+  topic_id   String?
+  created_at DateTime @default(now())
+
+  student   Student              @relation(fields: [student_id], references: [id])
+  subject   Subject              @relation(fields: [subject_id], references: [id])
+  topic     Topic?               @relation(fields: [topic_id], references: [id])
+  messages  Message[]
+  summaries ConversationSummary[]
+  ai_usages AIUsage[]
+
+  @@map("conversation")
+}
+
+model Message {
+  id              String      @id @default(uuid())
+  conversation_id String
+  role            MessageRole
+  content         String
+  prompt_tokens   Int         @default(0)
+  response_tokens Int         @default(0)
+  created_at      DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversation_id], references: [id])
+  favorites    Favorite[]
+
+  @@map("message")
+}
+
+model ConversationSummary {
+  id              String   @id @default(uuid())
+  conversation_id String
+  summary         String
+  created_at      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversation_id], references: [id])
+
+  @@map("conversation_summary")
+}
+
+model Exam {
+  id                   String    @id @default(uuid())
+  student_id           String
+  subject_id           String
+  topic_id             String?
+  exam_content_json    Json      @default("{}")
+  student_answers_json Json      @default("{}")
+  final_score          Float?
+  execution_time       Int?
+  result_summary       String?
+  completed_at         DateTime?
+
+  student Student  @relation(fields: [student_id], references: [id])
+  subject Subject  @relation(fields: [subject_id], references: [id])
+  topic   Topic?   @relation(fields: [topic_id], references: [id])
+
+  @@map("exam")
+}
+
+model StudentMetrics {
+  id            String @id @default(uuid())
+  student_id    String
+  subject_id    String
+  accuracy_rate Float  @default(0)
+  total_time    Int    @default(0)
+  attempts      Int    @default(0)
+
+  student Student @relation(fields: [student_id], references: [id])
+  subject Subject @relation(fields: [subject_id], references: [id])
+
+  @@unique([student_id, subject_id])
+  @@map("student_metrics")
+}
+
+model Alert {
+  id             String   @id @default(uuid())
+  student_id     String
+  institution_id String
+  alert_type     String
+  level          String
+  description    String
+  resolved       Boolean  @default(false)
+  created_at     DateTime @default(now())
+
+  student     Student     @relation(fields: [student_id], references: [id])
+  institution Institution @relation(fields: [institution_id], references: [id])
+
+  @@index([institution_id])
+  @@map("alert")
+}
+
+model AIUsage {
+  id              String   @id @default(uuid())
+  institution_id  String
+  user_id         String
+  conversation_id String?
+  provider        String
+  model           String
+  prompt_tokens   Int
+  response_tokens Int
+  cost            Float
+  created_at      DateTime @default(now())
+
+  institution  Institution   @relation(fields: [institution_id], references: [id])
+  user         User          @relation(fields: [user_id], references: [id])
+  conversation Conversation? @relation(fields: [conversation_id], references: [id])
+
+  @@index([institution_id])
+  @@map("ai_usage")
+}
+
+model Note {
+  id         String   @id @default(uuid())
+  student_id String
+  content    String
+  created_at DateTime @default(now())
+
+  student Student @relation(fields: [student_id], references: [id])
+
+  @@map("note")
+}
+
+model Favorite {
+  id         String  @id @default(uuid())
+  student_id String
+  message_id String?
+  file_id    String?
+
+  student Student  @relation(fields: [student_id], references: [id])
+  message Message? @relation(fields: [message_id], references: [id])
+
+  @@map("favorite")
+}
+
+model Activity {
+  id             String   @id @default(uuid())
+  institution_id String
+  teacher_id     String
+  class_id       String
+  subject_id     String?
+  topic_id       String?
+  title          String
+  description    String?
+  start_date     DateTime
+  end_date       DateTime
+  activity_type  String
+  created_at     DateTime @default(now())
+
+  institution       Institution       @relation(fields: [institution_id], references: [id])
+  teacher           Teacher           @relation(fields: [teacher_id], references: [id])
+  class             Class             @relation(fields: [class_id], references: [id])
+  subject           Subject?          @relation(fields: [subject_id], references: [id])
+  topic             Topic?            @relation(fields: [topic_id], references: [id])
+  studentActivities StudentActivity[]
+
+  @@index([institution_id])
+  @@map("activity")
+}
+
+model StudentActivity {
+  id           String    @id @default(uuid())
+  activity_id  String
+  student_id   String
+  status       String    @default("pending")
+  completed_at DateTime?
+
+  activity Activity @relation(fields: [activity_id], references: [id])
+  student  Student  @relation(fields: [student_id], references: [id])
+
+  @@unique([activity_id, student_id])
+  @@map("student_activity")
+}
+
+model GradeTemplate {
+  id             String   @id @default(uuid())
+  institution_id String
+  name           String
+  created_at     DateTime @default(now())
+
+  institution Institution  @relation(fields: [institution_id], references: [id])
+  columns     GradeColumn[]
+
+  @@map("grade_template")
+}
+
+model GradeColumn {
+  id           String    @id @default(uuid())
+  template_id  String
+  group_name   String
+  column_name  String
+  grade_type   GradeType
+  weight       Float     @default(1)
+  auto_average Boolean   @default(false)
+
+  template      GradeTemplate  @relation(fields: [template_id], references: [id])
+  studentGrades StudentGrade[]
+
+  @@map("grade_column")
+}
+
+model StudentGrade {
+  id         String   @id @default(uuid())
+  student_id String
+  column_id  String
+  value      String
+  updated_at DateTime @updatedAt
+
+  student Student     @relation(fields: [student_id], references: [id])
+  column  GradeColumn @relation(fields: [column_id], references: [id])
+
+  @@unique([student_id, column_id])
+  @@map("student_grade")
+}
+
+// ─── Tabelas N:N ─────────────────────────────────────────────────────────���───
+
+model StudentClass {
+  student_id String
+  class_id   String
+
+  student Student @relation(fields: [student_id], references: [id])
+  class   Class   @relation(fields: [class_id], references: [id])
+
+  @@id([student_id, class_id])
+  @@map("student_class")
+}
+
+model TeacherClass {
+  teacher_id String
+  class_id   String
+
+  teacher Teacher @relation(fields: [teacher_id], references: [id])
+  class   Class   @relation(fields: [class_id], references: [id])
+
+  @@id([teacher_id, class_id])
+  @@map("teacher_class")
+}
+
+model TeacherSubject {
+  teacher_id String
+  subject_id String
+
+  teacher Teacher @relation(fields: [teacher_id], references: [id])
+  subject Subject @relation(fields: [subject_id], references: [id])
+
+  @@id([teacher_id, subject_id])
+  @@map("teacher_subject")
 }
