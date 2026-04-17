@@ -670,7 +670,86 @@ services:
 
 ---
 
-## 23. Princípio Geral de Desenvolvimento
+## 23. Sistema de Tema — Cor Primária por Perfil
+
+O frontend usa uma variável CSS global `--color-primary` que muda conforme o perfil/role do usuário. Toda a UI deve consumir essa variável em vez de cores hardcoded.
+
+### Variáveis CSS disponíveis
+
+Definidas em `app/globals.css` dentro do bloco `@theme` (Tailwind v4):
+
+```css
+--color-primary        /* cor principal do perfil */
+--color-primary-hover  /* versão escurecida para estados hover */
+--color-primary-text   /* cor do texto sobre fundo primário */
+```
+
+### Classes Tailwind geradas
+
+Por estarem no `@theme`, o Tailwind gera automaticamente:
+
+```
+bg-primary          text-primary          border-primary
+bg-primary-hover    text-primary-hover    border-primary-hover
+bg-primary-text     text-primary-text
+hover:bg-primary    hover:bg-primary-hover
+bg-primary/20       (com opacidade)
+```
+
+**Nunca use `bg-brand-teal` em elementos que devem respeitar o tema do perfil.** Use `bg-primary`.
+
+### Valores por perfil
+
+| Perfil | `--color-primary` | `--color-primary-hover` | `--color-primary-text` |
+|---|---|---|---|
+| `student` | `#85C9C3` | `#6BB5AF` | `#ffffff` |
+| `teacher` | `#C9C8EC` | `#B5B4E0` | `#ffffff` |
+| `admin` | `#ECECEC` | `#D8D8D8` | `#5F5E5C` |
+
+### Arquivos principais
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `app/globals.css` | Declara as variáveis no `@theme` com valores padrão |
+| `app/providers/theme-provider.tsx` | Context + `setProfile()` que aplica as vars no `:root` e persiste no `localStorage` |
+| `app/layout.tsx` | Envolve toda a aplicação com `ThemeProvider` |
+
+### Como consumir em componentes
+
+```tsx
+// Botão padrão que respeita o tema
+className="bg-primary hover:bg-primary-hover text-primary-text"
+
+// Texto colorido
+className="text-primary"
+
+// Borda
+className="border-primary focus:ring-primary/20"
+```
+
+### Como alterar o tema programaticamente
+
+```tsx
+const { setProfile } = useTheme();
+setProfile('teacher'); // atualiza CSS vars + localStorage
+```
+
+### Mapeamento userType (JWT) → perfil
+
+Feito no `WelcomeScreen` após login bem-sucedido:
+
+| `userType` | Perfil aplicado |
+|---|---|
+| `student` | `student` |
+| `teacher` | `teacher` |
+| `institution` | `admin` |
+| `super_admin` | `admin` |
+
+O tema definido na tela de seleção de perfil (`/`) é **sobrescrito pelo role real do JWT** na tela de boas-vindas (`/welcome`). Isso garante consistência mesmo que o usuário tenha clicado no perfil errado.
+
+---
+
+## 24. Princípio Geral de Desenvolvimento
 
 > **Evitar overengineering é uma regra de negócio, não uma sugestão.**
 
