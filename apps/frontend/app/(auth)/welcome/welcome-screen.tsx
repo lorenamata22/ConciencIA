@@ -80,35 +80,15 @@ export function WelcomeScreen({ name, userType }: WelcomeScreenProps) {
 /* Marca do elefante ConciencIA — ícone isolado */
 function ElephantMark() {
   return (
-    <svg
-      width="56"
-      height="56"
-      viewBox="0 0 64 64"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      {/* Corpo */}
-      <ellipse cx="32" cy="36" rx="20" ry="16" fill="#3B2A1A" />
-      {/* Cabeça */}
-      <circle cx="32" cy="22" r="13" fill="#3B2A1A" />
-      {/* Orelha esquerda */}
-      <ellipse cx="16" cy="24" rx="6" ry="9" fill="#3B2A1A" />
-      {/* Tromba */}
-      <path
-        d="M25 34 Q18 44 22 50"
-        stroke="#3B2A1A"
-        strokeWidth="5"
-        strokeLinecap="round"
-        fill="none"
-      />
-      {/* Olho esquerdo */}
-      <circle cx="26" cy="20" r="2" fill="#F8F6F1" />
-      {/* Olho direito */}
-      <circle cx="38" cy="20" r="2" fill="#F8F6F1" />
-      {/* Patas */}
-      <rect x="18" y="48" width="8" height="10" rx="4" fill="#3B2A1A" />
-      <rect x="38" y="48" width="8" height="10" rx="4" fill="#3B2A1A" />
-    </svg>
+  <svg width="65" height="51" viewBox="0 0 65 51" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g clipPath="url(#clip0_217_1382)">
+    <path d="M45.8785 0H10.856C4.86047 0 0 4.85585 0 10.8456V51H13.984C13.0608 50.1645 12.4689 48.9763 12.4689 47.6362V37.3222C12.4689 35.3039 14.1089 33.6654 16.1292 33.6654C18.1494 33.6654 19.7895 35.3039 19.7895 37.3222V51H44.8793V33.112C44.8793 29.7319 47.6218 26.9974 50.9997 26.9974H51.7817C55.165 26.9974 57.9021 29.7373 57.9021 33.112V41.31C57.9021 42.8997 56.615 44.1855 55.0238 44.1855H51.7817V51H57.989C61.8611 51 65.0054 47.864 65.0054 43.9902V19.0979C65 8.55064 56.4358 0 45.8785 0ZM16.1346 29.1351C14.4239 29.1351 13.0391 27.7516 13.0391 26.0426C13.0391 24.3335 14.4239 22.95 16.1346 22.95C17.8453 22.95 19.2301 24.3335 19.2301 26.0426C19.2301 27.7516 17.8453 29.1351 16.1346 29.1351ZM50.9779 16.0867C50.5761 17.7523 48.898 18.7723 47.2308 18.3709C45.5635 17.9694 44.5426 16.2929 44.9444 14.6272C45.3463 12.9616 47.0244 11.9416 48.6916 12.3431C50.3588 12.7446 51.3798 14.4211 50.9779 16.0867Z" fill="#413124"/>
+    </g>
+    <defs>
+    <clipPath id="clip0_217_1382">
+    <rect width="65" height="51" fill="white"/>
+    </clipPath>
+    </defs>
+  </svg>
   );
 }

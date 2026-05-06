@@ -30,3 +30,7 @@ body {
   color: var(--color-brand-brown);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
+
+.sidebar{
+  box-shadow: 10px 0px 20px 0px #00000008;
+}
