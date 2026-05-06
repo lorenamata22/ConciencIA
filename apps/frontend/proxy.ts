@@ -1,49 +1,75 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Rotas públicas (sem autenticação obrigatória)
-const PUBLIC_PATHS = ['/', '/login', '/welcome'];
+// Rotas que não requerem autenticação
+const PUBLIC_ROUTES = new Set(['/', '/login']);
 
-// Rotas onde usuário autenticado NÃO deve ser redirecionado pro dashboard
-// (ex: /welcome é acessado logo após o login)
-const AUTH_BYPASS_PATHS = ['/welcome'];
+// Prefixos restritos por role
+const ROLE_ROUTES: Array<{ prefix: string; roles: string[] }> = [
+  { prefix: '/student',     roles: ['student'] },
+  { prefix: '/teacher',     roles: ['teacher'] },
+  { prefix: '/institution', roles: ['institution'] },
+  { prefix: '/admin',       roles: ['super_admin'] },
+];
 
-// Mapa de roles para seus dashboards
-const ROLE_PATHS: Record<string, string> = {
-  student: '/dashboard/student',
-  teacher: '/dashboard/teacher',
-  institution: '/dashboard/institution',
-  super_admin: '/dashboard/admin',
+// Rota de destino padrão por role (usado no redirect ao acessar rota errada)
+const ROLE_HOME: Record<string, string> = {
+  student:     '/student',
+  teacher:     '/teacher',
+  institution: '/institution',
+  super_admin: '/admin',
 };
 
-export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+// Node.js runtime — Buffer disponível
+function parseJwtPayload(token: string): { userType: string } | null {
+  try {
+    const base64 = token.split('.')[1];
+    return JSON.parse(Buffer.from(base64, 'base64url').toString('utf-8'));
+  } catch {
+    return null;
+  }
+}
 
-  const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
-  const isAuthBypass = AUTH_BYPASS_PATHS.some((p) => pathname.startsWith(p));
+export default async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
   const accessToken = request.cookies.get('accessToken')?.value;
 
-  // Usuário não autenticado tentando acessar rota protegida
-  if (!isPublic && !accessToken) {
+  // Rotas públicas: usuário autenticado vai para /home
+  if (PUBLIC_ROUTES.has(pathname)) {
+    if (accessToken) {
+      return NextResponse.redirect(new URL('/home', request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // Rota protegida sem token — redireciona para login
+  if (!accessToken) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // Usuário autenticado acessando login ou seleção de perfil → redirecionar para dashboard
-  if (isPublic && !isAuthBypass && accessToken) {
-    try {
-      const base64 = accessToken.split('.')[1];
-      const payload = JSON.parse(Buffer.from(base64, 'base64url').toString());
-      const destination = ROLE_PATHS[payload.userType] ?? '/dashboard/student';
-      return NextResponse.redirect(new URL(destination, request.url));
-    } catch {
-      // Token corrompido — deixar passar para o login limpar a sessão
-      return NextResponse.next();
-    }
+  // Token malformado — limpa cookies e redireciona
+  const payload = parseJwtPayload(accessToken);
+  if (!payload) {
+    const response = NextResponse.redirect(new URL('/login', request.url));
+    response.cookies.delete('accessToken');
+    response.cookies.delete('refreshToken');
+    return response;
+  }
+
+  // Verifica se o role tem permissão para acessar a rota
+  const { userType } = payload;
+  const restricted = ROLE_ROUTES.find((r) => pathname.startsWith(r.prefix));
+
+  if (restricted && !restricted.roles.includes(userType)) {
+    const home = ROLE_HOME[userType] ?? '/home';
+    return NextResponse.redirect(new URL(home, request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.svg).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 };

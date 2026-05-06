@@ -7,12 +7,12 @@ export default async function HomePage() {
   if (!session) redirect('/login');
 
   const roleRedirects: Record<string, string> = {
-    student: '/dashboard/student',
-    teacher: '/dashboard/teacher',
-    institution: '/dashboard/institution',
-    super_admin: '/dashboard/admin',
+    student: '/student',
+    teacher: '/teacher',
+    institution: '/institution',
+    super_admin: '/admin',
   };
 
-  const destination = roleRedirects[session.userType] ?? '/dashboard/student';
+  const destination = roleRedirects[session.userType] ?? '/student';
   redirect(destination);
 }

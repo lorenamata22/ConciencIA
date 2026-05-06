@@ -27,7 +27,7 @@ export function LoginForm() {
             px-4 py-3 text-sm text-brand-brown
             placeholder:text-brand-placeholder
             outline-none
-            focus:border-brand-border-focus focus:ring-2 focus:ring-brand-teal/20
+            focus:border-brand-border-focus focus:ring-1 focus:ring-brand-teal/20
             transition-colors
           "
         />
@@ -41,7 +41,7 @@ export function LoginForm() {
           </label>
           <a
             href="/forgot-password"
-            className="text-xs text-primary hover:text-primary-hover transition-colors"
+            className="text-xs text-primaryq-text hover:text-primary-text-hover transition-colors"
           >
             Olvidé mi contraseña
           </a>
@@ -59,7 +59,7 @@ export function LoginForm() {
               px-4 py-3 pr-11 text-sm text-brand-brown
               placeholder:text-brand-placeholder
               outline-none
-              focus:border-brand-border-focus focus:ring-2 focus:ring-brand-teal/20
+              focus:border-brand-border-focus focus:ring-1 focus:ring-brand-teal/20
               transition-colors
             "
           />

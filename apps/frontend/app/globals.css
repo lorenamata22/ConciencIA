@@ -4,12 +4,12 @@
   /* Paleta ConciencIA */
   --color-brand-bg: #F8F6F1;
   --color-brand-brown: #3B2A1A;
-  --color-brand-teal: #7FC4BE;
-  --color-brand-teal-hover: #6BB5AF;
+  --color-brand-teal: #5F5E5C;
+  --color-brand-teal-hover: #5F5E5C;
   --color-brand-label: #686868;
   --color-brand-placeholder: #BCBAB7;
-  --color-brand-border: #D0CDCA;
-  --color-brand-border-focus: #7FC4BE;
+  --color-brand-border: #D0D5DD;
+  --color-brand-border-focus: #5F5E5C;
 
   /*
     Cor primária dinâmica — muda conforme o perfil selecionado.
