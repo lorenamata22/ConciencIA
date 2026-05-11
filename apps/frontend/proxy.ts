@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Rotas que não requerem autenticação
-const PUBLIC_ROUTES = new Set(['/', '/login']);
+const PUBLIC_ROUTES = new Set(['/', '/login', '/forgot-password']);
+
+// Prefixos públicos (subrotas dinâmicas)
+const PUBLIC_PREFIXES = ['/reset-password/'];
 
 // Prefixos restritos por role
 const ROLE_ROUTES: Array<{ prefix: string; roles: string[] }> = [
@@ -35,8 +38,12 @@ export default async function proxy(request: NextRequest) {
   const accessToken = request.cookies.get('accessToken')?.value;
 
   // Rotas públicas: usuário autenticado vai para /home
-  if (PUBLIC_ROUTES.has(pathname)) {
-    if (accessToken) {
+  const isPublic =
+    PUBLIC_ROUTES.has(pathname) ||
+    PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+
+  if (isPublic) {
+    if (accessToken && PUBLIC_ROUTES.has(pathname)) {
       return NextResponse.redirect(new URL('/home', request.url));
     }
     return NextResponse.next();

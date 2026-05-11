@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from 'react';
 import { loginAction } from '@/app/actions/auth';
+import { LoginError } from '@/components/ui/login-error';
 
 export function LoginForm() {
   const [state, action, isPending] = useActionState(loginAction, { error: null });
@@ -10,6 +11,11 @@ export function LoginForm() {
 
   return (
     <form action={action} className="flex flex-col gap-5 w-full">
+      {/* Erro */}
+      {state.error && (
+        <LoginError message={state.error} />
+      )}
+
       {/* Campo Correo */}
       <div className="flex flex-col gap-1.5">
         <label htmlFor="email" className="text-sm font-medium text-brand-label">
@@ -99,12 +105,6 @@ export function LoginForm() {
         <span className="text-sm text-brand-label">Guardar mi sesión iniciada</span>
       </label>
 
-      {/* Erro */}
-      {state.error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
-          {state.error}
-        </p>
-      )}
 
       {/* Botão Login */}
       <button

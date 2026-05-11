@@ -34,3 +34,29 @@ export async function apiRefresh(refreshToken: string): Promise<RefreshResponse>
 
   return res.json();
 }
+
+export interface BaseResponse {
+  data: unknown;
+  message: string;
+  statusCode: number;
+}
+
+export async function apiForgotPassword(email: string): Promise<BaseResponse> {
+  const res = await fetch(`${API_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  return res.json();
+}
+
+export async function apiResetPassword(token: string, newPassword: string): Promise<BaseResponse> {
+  const res = await fetch(`${API_URL}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, newPassword }),
+  });
+
+  return res.json();
+}

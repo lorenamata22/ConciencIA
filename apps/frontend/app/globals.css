@@ -34,3 +34,7 @@ body {
 .sidebar{
   box-shadow: 10px 0px 20px 0px #00000008;
 }
+
+.login-alert{
+  background-color: #D0D5DD4D;
+}
