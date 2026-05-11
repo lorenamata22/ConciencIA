@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { useEffect, useState, useTransition } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { logoutAction } from '@/app/actions/auth';
 
 type UserType = 'student' | 'teacher' | 'institution' | 'super_admin';
@@ -216,8 +216,17 @@ interface SidebarProps {
 
 export function Sidebar({ userName, userType }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const role = userType as UserType;
   const [isOpen, setIsOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  function handleLogout() {
+    startTransition(async () => {
+      await logoutAction();
+      router.push('/login');
+    });
+  }
 
   // Fecha automaticamente ao passar para desktop
   useEffect(() => {
@@ -299,7 +308,7 @@ export function Sidebar({ userName, userType }: SidebarProps) {
       <aside
         className={`
           fixed lg:static inset-y-0 left-0 z-40
-          flex flex-col w-74 h-dvh px-6 py-20 lg:justify-between border-brand-border/40 flex-shrink-0
+          flex flex-col w-74 h-dvh px-10 py-20 lg:justify-between border-brand-border/40 flex-shrink-0
           bg-brand-bg overflow-y-auto lg:overflow-visible
           transition-transform duration-300 ease-in-out sidebar
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -319,16 +328,16 @@ export function Sidebar({ userName, userType }: SidebarProps) {
           <div className="mb-10">
             <ElephantMark />
           </div>
-          <div className="my-11">
+          <div className="mt-11">
             <p className="text-base font-semibold text-brand-brown">
-              ¡Hola,<br /> {userName || 'Usuario'}!
+              ¡Hola, {userName || 'Usuario'}!
             </p>
           </div>
           <div>
             {role === 'student' && (
               <Link
                 href="/student/cognitive-test"
-                className="text-sm text-primary underline inline-block transition-colors"
+                className="text-sm text-primary underline inline-block transition-colors mt-4"
               >
                 Revisar test
               </Link>
@@ -346,15 +355,15 @@ export function Sidebar({ userName, userType }: SidebarProps) {
           <nav className="flex flex-col gap-8 flex-1">
             {renderNavSection(NAV_SECTIONS_CONFG)}
           </nav>
-          <form action={logoutAction}>
-            <button
-              type="submit"
-              className="flex items-center cursor-pointer gap-3 px-2 py-2 rounded-lg text-base text-red-500 hover:text-red-600 transition-colors w-full"
-            >
-              <LogOutIcon className="text-red-500" />
-              Logout
-            </button>
-          </form>
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isPending}
+            className="flex items-center cursor-pointer gap-3 px-2 py-2 rounded-lg text-base text-red-500 hover:text-red-600 transition-colors w-full disabled:opacity-50"
+          >
+            <LogOutIcon className="text-red-500" />
+            {isPending ? 'Saindo...' : 'Logout'}
+          </button>
         </div>
       </aside>
     </>
