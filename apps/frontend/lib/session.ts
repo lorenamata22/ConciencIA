@@ -26,7 +26,7 @@ export async function createSession(accessToken: string, refreshToken: string) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 30, // 15 minutos — mesmo que JWT_ACCESS_EXPIRES_IN
+    maxAge: 60 * 15, // 15 minutos — mesmo que JWT_ACCESS_EXPIRES_IN
   });
 
   cookieStore.set('refreshToken', refreshToken, {
