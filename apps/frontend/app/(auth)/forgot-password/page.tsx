@@ -14,10 +14,13 @@ export default function ForgotPasswordPage() {
         <Image src={Logo} alt="ConciencIA" width={457} height={67} />
       </div>
 
+
+
       <div className="w-full max-w-sm">
-        <h2 className="text-xl font-bold text-brand-brown mb-6">Recuperar contraseña</h2>
+        
         <ForgotPasswordForm />
       </div>
+
     </main>
   );
 }

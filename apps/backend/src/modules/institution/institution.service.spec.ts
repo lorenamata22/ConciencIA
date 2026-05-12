@@ -77,4 +77,19 @@ describe('InstitutionService', () => {
       expect(result).toHaveLength(1);
     });
   });
+
+  describe('getStats', () => {
+    it('should return institution counts grouped by status', async () => {
+      prismaMock.institution.count
+        .mockResolvedValueOnce(5)  // total
+        .mockResolvedValueOnce(3)  // active
+        .mockResolvedValueOnce(1)  // pending
+        .mockResolvedValueOnce(2); // newThisMonth
+
+      const result = await service.getStats();
+
+      expect(result).toEqual({ total: 5, active: 3, pending: 1, newThisMonth: 2 });
+      expect(prismaMock.institution.count).toHaveBeenCalledTimes(4);
+    });
+  });
 });
