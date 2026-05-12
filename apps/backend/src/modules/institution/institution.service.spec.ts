@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { InstitutionService } from './institution.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { createPrismaMock, PrismaMock } from '../../prisma/prisma-mock';
@@ -11,8 +11,28 @@ describe('InstitutionService', () => {
   const mockInstitution = {
     id: 'inst-id-1',
     name: 'Escola Alpha',
+    email: 'contato@alpha.edu',
+    phone: null,
+    representative_name: 'Maria López',
+    address: null,
+    postal_code: null,
+    country: null,
+    city: null,
+    logo_url: null,
     status: 'active',
     ai_token_limit: 1000000,
+    created_at: new Date(),
+  };
+
+  const mockUser = {
+    id: 'user-id-1',
+    institution_id: 'inst-id-1',
+    name: 'Maria López',
+    email: 'contato@alpha.edu',
+    password: 'hashed',
+    user_type: 'institution',
+    ai_token_limit: null,
+    is_minor: false,
     created_at: new Date(),
   };
 
@@ -30,15 +50,33 @@ describe('InstitutionService', () => {
   });
 
   describe('create', () => {
-    it('should create a new institution', async () => {
+    it('should create institution and institution user in a transaction', async () => {
+      prismaMock.$transaction.mockImplementation(async (fn: any) =>
+        fn(prismaMock),
+      );
       prismaMock.institution.create.mockResolvedValue(mockInstitution as any);
+      prismaMock.user.create.mockResolvedValue(mockUser as any);
 
-      const result = await service.create({ name: 'Escola Alpha', ai_token_limit: 1000000 });
+      const result = await service.create({
+        name: 'Escola Alpha',
+        email: 'contato@alpha.edu',
+        password: 'senha123',
+        representativeName: 'Maria López',
+      });
 
       expect(result.id).toBe('inst-id-1');
       expect(prismaMock.institution.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ name: 'Escola Alpha' }),
+          data: expect.objectContaining({ name: 'Escola Alpha', email: 'contato@alpha.edu' }),
+        }),
+      );
+      expect(prismaMock.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            name: 'Maria López',
+            email: 'contato@alpha.edu',
+            user_type: 'institution',
+          }),
         }),
       );
     });

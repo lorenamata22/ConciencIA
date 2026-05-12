@@ -49,11 +49,19 @@ enum GradeType {
 // ─── Entidades principais ───────────────────────────────────���────────────────
 
 model Institution {
-  id             String   @id @default(uuid())
-  name           String
-  status         String   @default("active")
-  ai_token_limit Int?
-  created_at     DateTime @default(now())
+  id                  String   @id @default(uuid())
+  name                String
+  email               String?
+  phone               String?
+  representative_name String?
+  address             String?
+  postal_code         String?
+  country             String?
+  city                String?
+  logo_url            String?
+  status              String   @default("active")
+  ai_token_limit      Int?
+  created_at          DateTime @default(now())
 
   users      User[]
   courses    Course[]

@@ -141,6 +141,16 @@ function XIcon({ className }: { className?: string }) {
   );
 }
 
+function PlusSquareIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="12" y1="8" x2="12" y2="16" />
+      <line x1="8" y1="12" x2="16" y2="12" />
+    </svg>
+  );
+}
+
 function LogOutIcon({ className }: { className?: string }) {
   return (
     <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -188,7 +198,8 @@ const NAV_SECTIONS_MENU: NavSection[] = [
       { name: 'Profesores',    href: '/institution/teachers', Icon: UserIcon,    roles: ['institution'] },
       { name: 'Alumnos',       href: '/institution/students', Icon: UserIcon,    roles: ['institution'] },
       { name: 'Notas',         href: '/institution/grades',   Icon: ClipboardIcon,roles: ['institution'] },
-      { name: 'Instituciones', href: '/admin',              Icon: BuildingIcon,   roles: ['super_admin'] },
+      { name: 'Instituciones',    href: '/admin',                    Icon: BuildingIcon,   roles: ['super_admin'] },
+      { name: 'Nueva institución', href: '/admin/institutions/new', Icon: PlusSquareIcon, roles: ['super_admin'] },
     ],
   }
 ];

@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
+import { UserType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
@@ -8,11 +10,37 @@ export class InstitutionService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateInstitutionDto) {
-    return this.prisma.institution.create({
-      data: {
-        name: dto.name,
-        ai_token_limit: dto.ai_token_limit,
-      },
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existing) throw new ConflictException('Já existe um usuário com este e-mail');
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    return this.prisma.$transaction(async (tx) => {
+      const institution = await tx.institution.create({
+        data: {
+          name: dto.name,
+          email: dto.email,
+          phone: dto.phone,
+          representative_name: dto.representativeName,
+          address: dto.address,
+          postal_code: dto.postalCode,
+          country: dto.country,
+          city: dto.city,
+          ai_token_limit: dto.aiTokenLimit,
+        },
+      });
+
+      await tx.user.create({
+        data: {
+          institution_id: institution.id,
+          name: dto.representativeName,
+          email: dto.email,
+          password: hashedPassword,
+          user_type: UserType.institution,
+        },
+      });
+
+      return institution;
     });
   }
 
