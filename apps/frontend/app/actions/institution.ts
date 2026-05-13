@@ -1,10 +1,12 @@
 'use server';
 
-import { redirect } from 'next/navigation';
 import { createInstitution } from '@/lib/api/institution';
 
 export interface CreateInstitutionState {
   error: string | null;
+  success?: boolean;
+  institutionName?: string;
+  institutionId?: string;
 }
 
 export async function createInstitutionAction(
@@ -45,5 +47,10 @@ export async function createInstitutionAction(
     return { error: result.message ?? 'No se pudo crear la institución. Inténtalo de nuevo.' };
   }
 
-  redirect('/admin');
+  return {
+    error: null,
+    success: true,
+    institutionName: result.data.name,
+    institutionId: result.data.id,
+  };
 }

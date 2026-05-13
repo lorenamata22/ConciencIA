@@ -2,7 +2,7 @@
 
 @theme {
   /* Paleta ConciencIA */
-  --color-brand-bg: #F8F6F1;
+  --color-brand-bg: #FAF9F6;
   --color-brand-brown: #3B2A1A;
   --color-brand-teal: #5F5E5C;
   --color-brand-teal-hover: #5F5E5C;
@@ -27,7 +27,7 @@
 
 body {
   background-color: var(--color-brand-bg);
-  color: var(--color-brand-brown);
+  color: var(--color-brand-teal);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
@@ -37,4 +37,15 @@ body {
 
 .login-alert{
   background-color: #D0D5DD4D;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-box-shadow: none !important;
+  -webkit-text-fill-color: #5F5E5C !important;
+  transition: background-color 5000s ease-in-out 0s;
+  background-color: #cacaca;
 }
