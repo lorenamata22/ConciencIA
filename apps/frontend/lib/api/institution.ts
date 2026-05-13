@@ -62,3 +62,27 @@ export async function createInstitution(
 
   return res.json();
 }
+
+export interface Institution {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  representative_name: string | null;
+  status: string;
+  created_at: string;
+}
+
+export async function getInstitutions(): Promise<Institution[]> {
+  try {
+    const res = await fetch(`${API_URL}/institutions`, {
+      headers: await authHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json.data as Institution[]) ?? [];
+  } catch {
+    return [];
+  }
+}

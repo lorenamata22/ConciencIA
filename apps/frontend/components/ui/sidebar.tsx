@@ -198,7 +198,8 @@ const NAV_SECTIONS_MENU: NavSection[] = [
       { name: 'Profesores',    href: '/institution/teachers', Icon: UserIcon,    roles: ['institution'] },
       { name: 'Alumnos',       href: '/institution/students', Icon: UserIcon,    roles: ['institution'] },
       { name: 'Notas',         href: '/institution/grades',   Icon: ClipboardIcon,roles: ['institution'] },
-      { name: 'Instituciones',    href: '/admin',                    Icon: BuildingIcon,   roles: ['super_admin'] },
+      { name: 'Inicio',        href: '/admin', Icon: HomeIcon, roles: ['super_admin'] },
+      { name: 'Instituciones',    href: '/admin/institutions', Icon: BuildingIcon, roles: ['super_admin'] },
       { name: 'Nueva institución', href: '/admin/institutions/new', Icon: PlusSquareIcon, roles: ['super_admin'] },
     ],
   }
