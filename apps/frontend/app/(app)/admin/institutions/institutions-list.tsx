@@ -15,7 +15,7 @@ const STATUS_CONFIG: Record<string, { label: string; dot: string; pill: string }
 function StatusBadge({ status }: { status: string }) {
   const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.inactive;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${config.pill}`}>
+    <span className={`inline-flex justify-center items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium w-40 ${config.pill}`}>
       <span className={`w-2 h-2 rounded-full ${config.dot}`} />
       {config.label}
     </span>
@@ -43,7 +43,7 @@ function Pagination({
       <button
         onClick={() => onPage(page - 1)}
         disabled={page === 1}
-        className="w-9 h-9 flex items-center justify-center rounded-xl border border-brand-border text-brand-label hover:bg-brand-border/30 disabled:opacity-40 transition-colors"
+        className="w-9 h-9 flex items-center justify-center rounded-lg border border-brand-border text-brand-label hover:bg-brand-border/30 disabled:opacity-40 transition-colors"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
       </button>
@@ -57,9 +57,9 @@ function Pagination({
             )}
             <button
               onClick={() => onPage(p)}
-              className={`w-9 h-9 rounded-xl border text-sm transition-colors ${
+              className={`w-9 h-9 rounded-lg border text-sm transition-colors ${
                 p === page
-                  ? 'border-brand-border-focus bg-brand-brown text-white font-medium'
+                  ? 'border-brand-border-focus bg-[#999DA3] text-white font-medium'
                   : 'border-brand-border text-brand-label hover:bg-brand-border/30'
               }`}
             >
@@ -72,7 +72,7 @@ function Pagination({
       <button
         onClick={() => onPage(page + 1)}
         disabled={page === pages}
-        className="w-9 h-9 flex items-center justify-center rounded-xl border border-brand-border text-brand-label hover:bg-brand-border/30 disabled:opacity-40 transition-colors"
+        className="w-9 h-9 flex items-center justify-center rounded-lg border border-brand-border text-brand-label hover:bg-brand-border/30 disabled:opacity-40 transition-colors"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
       </button>
@@ -122,6 +122,10 @@ export function InstitutionsList({ institutions }: { institutions: Institution[]
         </div>
       </div>
 
+      {/* Tabela com scroll lateral no mobile */}
+      <div className="overflow-x-auto">
+        <div className="min-w-[640px]">
+
       {/* Cabeçalho da tabela */}
       <div className="grid grid-cols-[2fr_2fr_1fr_auto] gap-4 px-6 py-3 mb-5">
         <span className="text-xs font-semibold text-brand-label tracking-wide uppercase">Nombre</span>
@@ -147,22 +151,25 @@ export function InstitutionsList({ institutions }: { institutions: Institution[]
             <div className="flex items-center gap-2">
               <Link
                 href={`/admin/institutions/${inst.id}/edit`}
-                className="w-9 h-9 flex items-center justify-center rounded-xl border border-brand-border text-brand-label hover:bg-brand-border/30 transition-colors"
+                className="w-9 h-9 flex items-center justify-center ps-1 rounded-lg border border-brand-border text-brand-label hover:bg-brand-border/30 transition-colors"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                <svg width="20" height="20" viewBox="0 0 22 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3.68868 20H13.3113C15.3474 19.9975 16.9974 18.3474 17 16.3113V8.47175C17 8.20613 16.7845 7.99062 16.5189 7.99062C16.2532 7.99062 16.0377 8.20613 16.0377 8.47175V16.3113C16.0365 17.8161 14.8161 19.0365 13.3113 19.0377H3.68868C2.18389 19.0365 0.963515 17.8161 0.962264 16.3113V6.68868C0.963517 5.18389 2.18389 3.96352 3.68868 3.96226H11.5282C11.7939 3.96226 12.0094 3.74676 12.0094 3.48113C12.0094 3.21551 11.7939 3 11.5282 3H3.68868C1.65262 3.00251 0.00256604 4.65262 0 6.68868V16.3113C0.00250574 18.3474 1.65262 19.9974 3.68868 20Z" fill="#5F5E5C"/>
+                  <path d="M19.3563 0.654695C18.9432 0.235155 18.3791 5.66473e-06 17.7895 5.66473e-06H17.7829C17.192 -0.00133067 16.6238 0.233817 16.2054 0.651993L7.15106 9.70258C7.05481 9.79878 7 9.92971 7 10.066V12.4869C7 12.7702 7.22994 13 7.51334 13H9.93567C10.072 13 10.203 12.9452 10.2993 12.849L19.355 3.7998L19.3563 3.79847V3.79713C20.2146 2.926 20.2145 1.52582 19.3563 0.654695ZM9.72429 11.974H8.02653V10.2772L15.3591 2.95013L17.0555 4.64559L9.72429 11.974ZM18.6277 3.07425L17.7815 3.92L16.085 2.22453L16.9313 1.37745C17.1572 1.15165 17.4647 1.02474 17.7842 1.02608H17.7868C18.1023 1.02474 18.4045 1.15167 18.6264 1.37611C19.0903 1.84641 19.0916 2.60262 18.6277 3.07425Z" fill="#5F5E5C"/>
                 </svg>
               </Link>
-              <button className="w-9 h-9 flex items-center justify-center rounded-xl border border-red-200 text-red-400 hover:bg-red-50 transition-colors">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              <button className="w-9 h-9 flex items-center ps-0.5 justify-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 transition-colors">
+                <svg width="13" height="13" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M13.5967 0.555664C13.6718 0.48054 13.7834 0.484605 13.8496 0.550781C13.9126 0.614018 13.9165 0.730719 13.8447 0.802734L7.80176 6.84668L7.44824 7.2002L13.8447 13.5967C13.9199 13.6718 13.9158 13.7834 13.8496 13.8496C13.7864 13.9129 13.6688 13.9168 13.5967 13.8447L7.2002 7.44824L6.84668 7.80176L0.802734 13.8447C0.727689 13.9195 0.616916 13.9155 0.550781 13.8496C0.487524 13.7864 0.483594 13.6688 0.555664 13.5967L6.95215 7.2002L6.59863 6.84668L0.555664 0.802734C0.480569 0.72761 0.484613 0.616949 0.550781 0.550781C0.61403 0.487532 0.730661 0.483623 0.802734 0.555664L6.84668 6.59863L7.2002 6.95215L13.5967 0.555664Z" fill="#D86262" stroke="#D86262"/>
                 </svg>
               </button>
             </div>
           </div>
         ))
       )}
+
+        </div>
+      </div>
 
       {/* Footer com paginação */}
       <div className="flex items-center justify-between px-6 py-4 pt-10 border-t border-brand-border">

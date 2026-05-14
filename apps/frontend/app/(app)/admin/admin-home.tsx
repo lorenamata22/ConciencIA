@@ -49,7 +49,7 @@ export async function AdminHome() {
         </div>
         <Link
           href="/admin/institutions/new"
-          className="flex items-center gap-2 bg-primary text-primary-text text-sm font-medium px-5 py-3 mt-5 md:mt-0 rounded-xl hover:bg-primary-hover transition-colors"
+          className="flex items-center gap-2 bg-[#999DA3] text-white text-sm font-medium px-5 py-3 mt-5 md:mt-0 rounded-xl hover:bg-[#999DA3]/90 transition-colors"
         >
           <PlusIcon />
           Nueva institución

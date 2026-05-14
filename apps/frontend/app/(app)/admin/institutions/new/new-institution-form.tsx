@@ -217,7 +217,7 @@ export function NewInstitutionForm() {
               <button
                 type="submit"
                 disabled={isPending}
-                className="px-5 py-3 rounded-xl text-sm font-medium bg-primary text-primary-text hover:bg-primary-hover transition-colors disabled:opacity-60"
+                className="px-5 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white hover:bg-[#999DA3]/90 cursor-pointer transition-colors disabled:opacity-60"
               >
                 {isPending ? 'Creando...' : 'Crear institución'}
               </button>

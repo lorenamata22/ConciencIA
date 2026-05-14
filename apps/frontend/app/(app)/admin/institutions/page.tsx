@@ -31,14 +31,14 @@ export default async function InstitutionsPage() {
       </div>
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-10">
+      <div className="flex flex-col md:flex-row items-start justify-between mb-10">
         <div>
-          <h1 className="text-4xl font-bold text-brand-brown">Instituciones</h1>
+          <h1 className="text-4xl text-brand">Instituciones</h1>
           <p className="text-sm text-brand-label mt-1">
             Última actualización: {formatLastUpdate()}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mt-5 md:mt-0">
           <button className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium text-brand-label border border-brand-border hover:bg-brand-border/30 transition-colors">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -49,7 +49,7 @@ export default async function InstitutionsPage() {
           </button>
           <Link
             href="/admin/institutions/new"
-            className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium bg-brand-brown text-white hover:bg-brand-brown/90 transition-colors"
+            className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white hover:bg-[#999DA3]/90 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
