@@ -57,9 +57,36 @@ export class InstitutionService {
   }
 
   async update(id: string, dto: UpdateInstitutionDto) {
+    const institution = await this.prisma.institution.findUnique({ where: { id } });
+    if (!institution) throw new NotFoundException('Instituição não encontrada');
+
     return this.prisma.institution.update({
       where: { id },
-      data: dto,
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.email !== undefined && { email: dto.email }),
+        ...(dto.phone !== undefined && { phone: dto.phone }),
+        ...(dto.representativeName !== undefined && { representative_name: dto.representativeName }),
+        ...(dto.address !== undefined && { address: dto.address }),
+        ...(dto.postalCode !== undefined && { postal_code: dto.postalCode }),
+        ...(dto.country !== undefined && { country: dto.country }),
+        ...(dto.city !== undefined && { city: dto.city }),
+        ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.aiTokenLimit !== undefined && { ai_token_limit: dto.aiTokenLimit }),
+      },
+    });
+  }
+
+  async updateLogo(id: string, filename: string) {
+    const institution = await this.prisma.institution.findUnique({ where: { id } });
+    if (!institution) throw new NotFoundException('Instituição não encontrada');
+
+    const port = process.env.BACKEND_PORT ?? '3001';
+    const logoUrl = `http://localhost:${port}/uploads/logos/${filename}`;
+
+    return this.prisma.institution.update({
+      where: { id },
+      data: { logo_url: logoUrl },
     });
   }
 

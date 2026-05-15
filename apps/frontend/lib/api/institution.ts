@@ -129,6 +129,49 @@ export async function getInstitutionDetailStats(id: string): Promise<Institution
   }
 }
 
+export interface UpdateInstitutionPayload {
+  name?: string;
+  email?: string;
+  phone?: string;
+  representativeName?: string;
+  address?: string;
+  postalCode?: string;
+  country?: string;
+  city?: string;
+  status?: string;
+  aiTokenLimit?: number;
+}
+
+export interface UpdateInstitutionResponse {
+  data: InstitutionDetail | null;
+  message: string;
+  statusCode: number;
+}
+
+export async function uploadInstitutionLogo(id: string, logo: File): Promise<void> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('accessToken')?.value ?? '';
+  const fd = new FormData();
+  fd.append('logo', logo);
+  await fetch(`${API_URL}/institutions/${id}/logo`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
+    body: fd,
+  });
+}
+
+export async function updateInstitution(
+  id: string,
+  payload: UpdateInstitutionPayload,
+): Promise<UpdateInstitutionResponse> {
+  const res = await fetch(`${API_URL}/institutions/${id}`, {
+    method: 'PATCH',
+    headers: await authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
 export async function getInstitutions(): Promise<Institution[]> {
   try {
     const res = await fetch(`${API_URL}/institutions`, {

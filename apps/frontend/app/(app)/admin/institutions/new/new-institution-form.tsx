@@ -19,17 +19,27 @@ export function NewInstitutionForm() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const logoFileRef = useRef<File | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    if (state.success || state.error) setShowModal(true);
-  }, [state.success, state.error]);
+    if (state.error) { setShowModal(true); return; }
+    if (!state.success || !state.institutionId) return;
+
+    const file = logoFileRef.current;
+    if (!file || file.size === 0) { setShowModal(true); return; }
+
+    const fd = new FormData();
+    fd.append('logo', file);
+    fetch(`/api/institutions/${state.institutionId}/logo`, { method: 'PATCH', body: fd })
+      .finally(() => setShowModal(true));
+  }, [state.success, state.error, state.institutionId]);
 
   function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setLogoPreview(url);
+    logoFileRef.current = file;
+    setLogoPreview(URL.createObjectURL(file));
   }
 
   function handleDropZoneClick() {
@@ -40,8 +50,8 @@ export function NewInstitutionForm() {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setLogoPreview(url);
+    logoFileRef.current = file;
+    setLogoPreview(URL.createObjectURL(file));
   }
 
   return (
@@ -115,6 +125,7 @@ export function NewInstitutionForm() {
             </div>
             <input
               ref={fileInputRef}
+              name="logo"
               type="file"
               accept="image/png,image/jpeg,image/svg+xml,image/webp"
               className="hidden"

@@ -31,13 +31,15 @@ export function CustomSelect({
   name,
   placeholder,
   options,
+  defaultValue,
 }: {
   name: string;
   placeholder: string;
   options: string[];
+  defaultValue?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState(defaultValue ?? '');
   const [openUpward, setOpenUpward] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);

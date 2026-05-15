@@ -1,6 +1,6 @@
 'use server';
 
-import { createInstitution } from '@/lib/api/institution';
+import { createInstitution, updateInstitution } from '@/lib/api/institution';
 
 export interface CreateInstitutionState {
   error: string | null;
@@ -52,5 +52,51 @@ export async function createInstitutionAction(
     success: true,
     institutionName: result.data.name,
     institutionId: result.data.id,
+  };
+}
+
+export interface UpdateInstitutionState {
+  error: string | null;
+  success?: boolean;
+  institutionName?: string;
+  institutionId?: string;
+}
+
+export async function updateInstitutionAction(
+  id: string,
+  _prev: UpdateInstitutionState,
+  formData: FormData,
+): Promise<UpdateInstitutionState> {
+  const name = (formData.get('name') as string)?.trim();
+  const representativeName = (formData.get('representativeName') as string)?.trim();
+  const phone = (formData.get('phone') as string)?.trim() || undefined;
+  const address = (formData.get('address') as string)?.trim() || undefined;
+  const postalCode = (formData.get('postalCode') as string)?.trim() || undefined;
+  const country = (formData.get('country') as string)?.trim() || undefined;
+  const city = (formData.get('city') as string)?.trim() || undefined;
+
+  if (!name || !representativeName) {
+    return { error: 'Completa los campos obligatorios.' };
+  }
+
+  const result = await updateInstitution(id, {
+    name,
+    representativeName,
+    phone,
+    address,
+    postalCode,
+    country,
+    city,
+  });
+
+  if (result.statusCode !== 200 || !result.data) {
+    return { error: result.message ?? 'No se pudo actualizar la institución. Inténtalo de nuevo.' };
+  }
+
+  return {
+    error: null,
+    success: true,
+    institutionName: result.data.name,
+    institutionId: id,
   };
 }

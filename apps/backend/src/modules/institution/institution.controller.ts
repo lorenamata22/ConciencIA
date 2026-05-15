@@ -6,7 +6,12 @@ import {
   Param,
   Body,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { InstitutionService } from './institution.service';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
@@ -47,5 +52,29 @@ export class InstitutionController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateInstitutionDto) {
     return this.institutionService.update(id, dto);
+  }
+
+  @Patch(':id/logo')
+  @UseInterceptors(
+    FileInterceptor('logo', {
+      storage: diskStorage({
+        destination: './uploads/logos',
+        filename: (req, file, cb) => {
+          const ext = extname(file.originalname);
+          cb(null, `${req.params.id}-${Date.now()}${ext}`);
+        },
+      }),
+      limits: { fileSize: 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowed = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
+        cb(null, allowed.includes(file.mimetype));
+      },
+    }),
+  )
+  uploadLogo(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.institutionService.updateLogo(id, file.filename);
   }
 }
