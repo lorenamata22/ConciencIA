@@ -77,6 +77,34 @@ export class InstitutionService {
     });
   }
 
+  async getUsers(id: string) {
+    const institution = await this.prisma.institution.findUnique({ where: { id } });
+    if (!institution) throw new NotFoundException('Instituição não encontrada');
+
+    return this.prisma.user.findMany({
+      where: { institution_id: id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        user_type: true,
+        is_minor: true,
+        created_at: true,
+      },
+      orderBy: { created_at: 'desc' },
+    });
+  }
+
+  async deleteUser(institutionId: string, userId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, institution_id: institutionId },
+    });
+    if (!user) throw new NotFoundException('Usuário não encontrado');
+
+    await this.prisma.user.delete({ where: { id: userId } });
+    return { deleted: true };
+  }
+
   async updateLogo(id: string, filename: string) {
     const institution = await this.prisma.institution.findUnique({ where: { id } });
     if (!institution) throw new NotFoundException('Instituição não encontrada');

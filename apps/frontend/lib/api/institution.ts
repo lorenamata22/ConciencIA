@@ -148,6 +148,29 @@ export interface UpdateInstitutionResponse {
   statusCode: number;
 }
 
+export interface InstitutionUser {
+  id: string;
+  name: string;
+  email: string;
+  user_type: string;
+  is_minor: boolean;
+  created_at: string;
+}
+
+export async function getInstitutionUsers(id: string): Promise<InstitutionUser[]> {
+  try {
+    const res = await fetch(`${API_URL}/institutions/${id}/users`, {
+      headers: await authHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json.data as InstitutionUser[]) ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function uploadInstitutionLogo(id: string, logo: File): Promise<void> {
   const cookieStore = await cookies();
   const token = cookieStore.get('accessToken')?.value ?? '';

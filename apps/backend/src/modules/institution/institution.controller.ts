@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   UseGuards,
@@ -42,6 +43,16 @@ export class InstitutionController {
   @Get(':id/stats')
   getDetailStats(@Param('id') id: string) {
     return this.institutionService.getDetailStats(id);
+  }
+
+  @Get(':id/users')
+  getUsers(@Param('id') id: string) {
+    return this.institutionService.getUsers(id);
+  }
+
+  @Delete(':id/users/:userId')
+  deleteUser(@Param('id') id: string, @Param('userId') userId: string) {
+    return this.institutionService.deleteUser(id, userId);
   }
 
   @Get(':id')

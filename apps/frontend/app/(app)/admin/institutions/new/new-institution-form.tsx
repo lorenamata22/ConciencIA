@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createInstitutionAction } from '@/app/actions/institution';
 import { FormField, CustomSelect, inputClass } from '@/components/ui/form';
+import { FeedbackModal, ModalSuccessIcon, ModalErrorIcon } from '@/components/ui/feedback-modal';
 
 const COUNTRIES = [
   'Argentina', 'Bolivia', 'Brasil', 'Chile', 'Colombia', 'Costa Rica',
@@ -54,268 +55,227 @@ export function NewInstitutionForm() {
     setLogoPreview(URL.createObjectURL(file));
   }
 
+  const isSuccess = !!state.success;
+
   return (
     <>
-    {showModal && (
       <FeedbackModal
-        type={state.success ? 'success' : 'error'}
-        institutionName={state.institutionName}
-        errorMessage={state.error ?? undefined}
+        open={showModal}
         onClose={() => setShowModal(false)}
-        onRegisterAnother={() => router.push('/admin/institutions/new')}
-      />
-    )}
-    <div className="pt-10 px-10 md:px-30">
-
-      {/* Tool Bar */}
-      <div className="mt-15 mb-10">
-        <Link
-          href="/admin"
-          className="flex items-center gap-1.5 text-sm text-brand-label hover:text-brand-brown transition-colors"
-        >
-          <ChevronLeftIcon />
-          Home
-        </Link>
-      </div>
-
-      {/* Header */}
-      <div className="mb-10">
-        <h1 className="text-4xl font-bold text-brand-brown">Nueva institución</h1>
-        <p className="text-sm text-brand-label mt-1">
-          Crea y administra instituciones educativas dentro de la plataforma
-        </p>
-      </div>
-
-      <hr className="border-brand-border mb-10" />
-
-      <form action={action} autoComplete="off">
-        <div className="flex flex-col md:flex-row gap-8 mb-5">
-
-          {/* Logo upload */}
-          <div className="flex-shrink-0">
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={handleDropZoneClick}
-              onKeyDown={(e) => e.key === 'Enter' && handleDropZoneClick()}
-              onDrop={handleDrop}
-              onDragOver={(e) => e.preventDefault()}
-              className="w-52 h-64 rounded-2xl border border border-brand-border flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-brand-border-focus transition-colors p-4"
-            >
-              {logoPreview ? (
-                <img
-                  src={logoPreview}
-                  alt="Logo preview"
-                  className="w-full h-32 object-contain rounded-lg"
-                />
-              ) : (
-                <div className="flex flex-col items-center gap-1 text-brand-label">
-                  <UploadIcon />
-                  <span className="text-md font-strong my-2">Subir logotipo</span>
-                  <p className="text-center text-sm"> <b>Haz clic</b> o arrastra tu archivo aqui</p>
-                </div>
-              )}
-              <hr className="border-brand-border" />
-              <ul className="text-xs text-brand-placeholder space-y-0.5 text-left w-full mt-1">
-                <li>• PNG, JPG, SVG o WebP</li>
-                <li>• Mínimo 60×60 px</li>
-                <li>• Máximo 1MB</li>
-                <li>• Proporción 1:1</li>
-              </ul>
+        icon={isSuccess ? <ModalSuccessIcon /> : <ModalErrorIcon />}
+        title={isSuccess ? '¡Institución creada con éxito!' : 'No pudimos completar el registro de la institución'}
+        titleColor={isSuccess ? 'text-[#6EC090]' : 'text-[#D86262]'}
+        description={
+          isSuccess
+            ? <>La institución &quot;{state.institutionName}&quot; ha sido<br />registrada correctamente en la plataforma.</>
+            : <>Ocurrió un problema al procesar la información ingresada. Por favor, revisa los datos e inténtalo nuevamente. Error: {state.error}</>
+        }
+        actions={
+          isSuccess ? (
+            <div className="flex gap-3">
+              <button
+                onClick={() => router.push('/admin/institutions/new')}
+                className="flex-1 px-4 py-3 rounded-xl text-sm font-medium border border-brand-border hover:bg-brand-border/30 transition-colors"
+              >
+                Registrar otra institución
+              </button>
+              <Link
+                href="/admin"
+                className="flex-1 px-4 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="text-base leading-none">+</span>
+                Ir a la institución
+              </Link>
             </div>
-            <input
-              ref={fileInputRef}
-              name="logo"
-              type="file"
-              accept="image/png,image/jpeg,image/svg+xml,image/webp"
-              className="hidden"
-              onChange={handleLogoChange}
-            />
-          </div>
+          ) : (
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-4 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white border border-brand-border text-brand-brown transition-colors"
+              >
+                Intentar nuevamente
+              </button>
+            </div>
+          )
+        }
+      />
 
-          {/* Fields */}
-          <div className="flex-1 flex flex-col gap-5">
+      <div className="pt-10 px-10 md:px-30">
 
-            <FormField label="Nombre de la institución" required>
+        {/* Tool Bar */}
+        <div className="mt-15 mb-10">
+          <Link
+            href="/admin"
+            className="flex items-center gap-1.5 text-sm text-brand-label hover:text-brand-brown transition-colors"
+          >
+            <ChevronLeftIcon />
+            Home
+          </Link>
+        </div>
+
+        {/* Header */}
+        <div className="mb-10">
+          <h1 className="text-4xl font-bold text-brand-brown">Nueva institución</h1>
+          <p className="text-sm text-brand-label mt-1">
+            Crea y administra instituciones educativas dentro de la plataforma
+          </p>
+        </div>
+
+        <hr className="border-brand-border mb-10" />
+
+        <form action={action} autoComplete="off">
+          <div className="flex flex-col md:flex-row gap-8 mb-5">
+
+            {/* Logo upload */}
+            <div className="flex-shrink-0">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={handleDropZoneClick}
+                onKeyDown={(e) => e.key === 'Enter' && handleDropZoneClick()}
+                onDrop={handleDrop}
+                onDragOver={(e) => e.preventDefault()}
+                className="w-52 h-64 rounded-2xl border border border-brand-border flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-brand-border-focus transition-colors p-4"
+              >
+                {logoPreview ? (
+                  <img
+                    src={logoPreview}
+                    alt="Logo preview"
+                    className="w-full h-32 object-contain rounded-lg"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center gap-1 text-brand-label">
+                    <UploadIcon />
+                    <span className="text-md font-strong my-2">Subir logotipo</span>
+                    <p className="text-center text-sm"> <b>Haz clic</b> o arrastra tu archivo aqui</p>
+                  </div>
+                )}
+                <hr className="border-brand-border" />
+                <ul className="text-xs text-brand-placeholder space-y-0.5 text-left w-full mt-1">
+                  <li>• PNG, JPG, SVG o WebP</li>
+                  <li>• Mínimo 60×60 px</li>
+                  <li>• Máximo 1MB</li>
+                  <li>• Proporción 1:1</li>
+                </ul>
+              </div>
               <input
-                name="name"
-                type="text"
-                placeholder="Ej. Colegio San Martín"
-                className={inputClass}
-                required
+                ref={fileInputRef}
+                name="logo"
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                className="hidden"
+                onChange={handleLogoChange}
               />
-            </FormField>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField label="Correo electrónico de contacto" required>
+            {/* Fields */}
+            <div className="flex-1 flex flex-col gap-5">
+
+              <FormField label="Nombre de la institución" required>
                 <input
-                  name="email"
-                  type="email"
-                  placeholder="contacto@institución.edu"
+                  name="name"
+                  type="text"
+                  placeholder="Ej. Colegio San Martín"
                   className={inputClass}
                   required
                 />
               </FormField>
-              <FormField label="Teléfono">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField label="Correo electrónico de contacto" required>
+                  <input
+                    name="email"
+                    type="email"
+                    placeholder="contacto@institución.edu"
+                    className={inputClass}
+                    required
+                  />
+                </FormField>
+                <FormField label="Teléfono">
+                  <input
+                    name="phone"
+                    type="tel"
+                    placeholder="+34 000 000 000"
+                    className={inputClass}
+                  />
+                </FormField>
+              </div>
+
+              <FormField label="Representante de la institución" required>
                 <input
-                  name="phone"
-                  type="tel"
-                  placeholder="+34 000 000 000"
-                  className={inputClass}
-                />
-              </FormField>
-            </div>
-
-            <FormField label="Representante de la institución" required>
-              <input
-                name="representativeName"
-                type="text"
-                placeholder="María López"
-                className={inputClass}
-                required
-              />
-            </FormField>
-
-            <FormField label="Contraseña de acceso" required>
-              <input
-                name="password"
-                type="password"
-                placeholder="Mínimo 6 caracteres"
-                className={inputClass}
-                required
-                minLength={6}
-              />
-            </FormField>
-
-            <FormField label="Dirección">
-              <input
-                name="address"
-                type="text"
-                placeholder="Calle y número"
-                className={inputClass}
-              />
-            </FormField>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField label="Código postal">
-                <input
-                  name="postalCode"
+                  name="representativeName"
                   type="text"
-                  placeholder="Ej. 080029"
+                  placeholder="María López"
                   className={inputClass}
+                  required
                 />
               </FormField>
-              <FormField label="País">
-                <CustomSelect name="country" placeholder="Seleccionar" options={COUNTRIES} />
-              </FormField>
-              <FormField label="Ciudad">
+
+              <FormField label="Contraseña de acceso" required>
                 <input
-                  name="city"
+                  name="password"
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
+                  className={inputClass}
+                  required
+                  minLength={6}
+                />
+              </FormField>
+
+              <FormField label="Dirección">
+                <input
+                  name="address"
                   type="text"
-                  placeholder="Madrid"
+                  placeholder="Calle y número"
                   className={inputClass}
                 />
               </FormField>
-            </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <Link
-                href="/admin"
-                className="px-5 py-3 rounded-xl text-sm font-medium text-brand-label border border-brand-border hover:bg-brand-border/30 transition-colors"
-              >
-                Cancelar
-              </Link>
-              <button
-                type="submit"
-                disabled={isPending}
-                className="px-5 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white hover:bg-[#999DA3]/90 cursor-pointer transition-colors disabled:opacity-60"
-              >
-                {isPending ? 'Creando...' : 'Crear institución'}
-              </button>
-            </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField label="Código postal">
+                  <input
+                    name="postalCode"
+                    type="text"
+                    placeholder="Ej. 080029"
+                    className={inputClass}
+                  />
+                </FormField>
+                <FormField label="País">
+                  <CustomSelect name="country" placeholder="Seleccionar" options={COUNTRIES} />
+                </FormField>
+                <FormField label="Ciudad">
+                  <input
+                    name="city"
+                    type="text"
+                    placeholder="Madrid"
+                    className={inputClass}
+                  />
+                </FormField>
+              </div>
 
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <Link
+                  href="/admin"
+                  className="px-5 py-3 rounded-xl text-sm font-medium text-brand-label border border-brand-border hover:bg-brand-border/30 transition-colors"
+                >
+                  Cancelar
+                </Link>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="px-5 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white hover:bg-[#999DA3]/90 cursor-pointer transition-colors disabled:opacity-60"
+                >
+                  {isPending ? 'Creando...' : 'Crear institución'}
+                </button>
+              </div>
+
+            </div>
           </div>
-        </div>
-      </form>
-    </div>
+        </form>
+      </div>
     </>
   );
 }
-
-function FeedbackModal({
-  type,
-  institutionName,
-  errorMessage,
-  onClose,
-  onRegisterAnother,
-}: {
-  type: 'success' | 'error';
-  institutionName?: string;
-  errorMessage?: string;
-  onClose: () => void;
-  onRegisterAnother: () => void;
-}) {
-  const isSuccess = type === 'success';
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl mx-4 px-10 py-10 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-brand-label hover:text-brand-brown transition-colors"
-          aria-label="Cerrar"
-        >
-          <XIcon />
-        </button>
-
-        <div className="flex justify-center mb-5">
-          <div className={`w-14 h-14 rounded-full flex items-center justify-center`}>
-            {isSuccess ? <CheckCircleIcon /> : <ErrorIcon />}
-          </div>
-        </div>
-
-        <h2 className={`text-center font-semibold text-lg mb-3 ${isSuccess ? 'text-[#6EC090]' : 'text-[#D86262]'}`}>
-          {isSuccess ? '¡Institución creada con éxito!' : 'No pudimos completar el registro de la institución'}
-        </h2>
-
-        <p className="text-center text-sm mb-8">
-          {isSuccess
-            ? <>La institución &quot;{institutionName}&quot; ha sido<br />registrada correctamente en la plataforma.</>
-            : <> Ocurrió un problema al procesar la información ingresada. Por favor, revisa los datos e inténtalo nuevamente. Error: {errorMessage}</>}
-        </p>
-
-        {isSuccess ? (
-          <div className="flex gap-3">
-            <button
-              onClick={onRegisterAnother}
-              className="flex-1 px-4 py-3 rounded-xl text-sm font-medium border border-brand-border hover:bg-brand-border/30 transition-colors"
-            >
-              Registrar otra institución
-            </button>
-            <Link
-              href="/admin"
-              className="flex-1 px-4 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white transition-colors flex items-center justify-center gap-2"
-            >
-              <span className="text-base leading-none">+</span>
-              Ir a la institución
-            </Link>
-          </div>
-        ) : (
-          <div className="flex justify-center">
-            <button
-            onClick={onClose}
-            className=" px-4 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white border border-brand-border text-brand-brown  transition-colors"
-          >
-            Intentar nuevamente
-          </button>
-          </div>
-          
-        )}
-      </div>
-    </div>
-  );
-}
-
 
 function UploadIcon() {
   return (
@@ -332,31 +292,6 @@ function ChevronLeftIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="15 18 9 12 15 6" />
-    </svg>
-  );
-}
-
-function XIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
-
-function CheckCircleIcon() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M17.93 0C8.03 0 0 8.02 0 17.93C0 27.84 8.03 35.86 17.93 35.86C27.83 35.86 35.87 27.84 35.87 17.93C35.87 8.02 27.84 0 17.93 0ZM30.73 11.77L15.73 26.78C15.36 27.15 14.87 27.33 14.38 27.33H14.34C13.86 27.33 13.37 27.14 13 26.77L5.14 18.91C4.4 18.17 4.4 16.97 5.14 16.22C5.88 15.48 7.09 15.48 7.83 16.22L14.36 22.76L28.04 9.09C28.78 8.34 29.99 8.34 30.73 9.09C31.47 9.83 31.47 11.03 30.73 11.77Z" fill="#6EC090"/>
-    </svg>
-  );
-}
-
-function ErrorIcon() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M17.93 0C8.02 0 0 8.03 0 17.93C0 27.83 8.03 35.86 17.93 35.86C27.83 35.86 35.86 27.84 35.86 17.93C35.86 8.02 27.83 0 17.93 0ZM26.77 24.09C27.51 24.83 27.51 26.03 26.77 26.78C26.4 27.15 25.91 27.33 25.43 27.33C24.95 27.33 24.45 27.15 24.08 26.78L17.93 20.62L11.77 26.78C11.4 27.15 10.91 27.33 10.43 27.33C9.95 27.33 9.45 27.15 9.08 26.78C8.34 26.03 8.34 24.83 9.08 24.09L15.24 17.93L9.08 11.77C8.34 11.03 8.34 9.83 9.08 9.09C9.82 8.34 11.03 8.34 11.77 9.09L17.93 15.24L24.08 9.09C24.82 8.34 26.03 8.34 26.77 9.09C27.51 9.83 27.51 11.03 26.77 11.77L20.61 17.93L26.77 24.09Z" fill="#D86262"/>
     </svg>
   );
 }
