@@ -255,11 +255,21 @@ export function Sidebar({ userName, userType }: SidebarProps) {
     setIsOpen(false);
   }, [pathname]);
 
-  function isActive(href: string) {
-    if (href === pathname) return true;
-    if (href !== '/' && pathname.startsWith(href + '/')) return true;
-    return false;
-  }
+  const activeKey = (() => {
+    const allItems = [...NAV_SECTIONS_MENU, ...NAV_SECTIONS_CONFG]
+      .flatMap((s) => s.items.filter((i) => i.roles.includes(role)));
+
+    const best = allItems.reduce<NavItem | null>((acc, item) => {
+      const matches =
+        item.href === pathname ||
+        (item.href !== '/' && pathname.startsWith(item.href + '/'));
+      if (!matches) return acc;
+      if (!acc || item.href.length > acc.href.length) return item;
+      return acc;
+    }, null);
+
+    return best ? best.href + best.name : null;
+  })();
 
   function renderNavSection(sections: NavSection[]) {
     return sections.map((section) => {
@@ -273,14 +283,14 @@ export function Sidebar({ userName, userType }: SidebarProps) {
           </p>
           <ul className="flex flex-col gap-0.5">
             {visibleItems.map((item) => {
-              const active = isActive(item.href);
+              const active = activeKey === item.href + item.name;
               return (
                 <li key={item.href + item.name}>
                   <Link
                     href={item.href}
                     className={`
                       flex items-center gap-3 px-2 py-2 rounded-lg text-base transition-colors
-                      ${active ? 'text-primary font-medium' : 'text-brand-brown hover:text-brand-brown/70'}
+                      ${active ? 'bg-primary/10 text-primary font-medium' : 'text-brand-brown hover:text-brand-brown/70'}
                     `}
                   >
                     <item.Icon className={active ? 'text-primary' : 'text-brand-label'} />
