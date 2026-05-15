@@ -39,6 +39,10 @@ body {
   background-color: #D0D5DD4D;
 }
 
+.card-shadow{
+  box-shadow: 0px 0px 30px 0px #0000000D;
+}
+
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,

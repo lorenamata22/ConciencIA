@@ -73,6 +73,62 @@ export interface Institution {
   created_at: string;
 }
 
+export interface InstitutionDetail extends Institution {
+  address: string | null;
+  postal_code: string | null;
+  city: string | null;
+  country: string | null;
+  logo_url: string | null;
+  ai_token_limit: number | null;
+}
+
+export interface InstitutionDetailStats {
+  tokenUsage: {
+    usedTokens: number;
+    remainingTokens: number | null;
+    tokenLimit: number | null;
+    usagePercent: number;
+    currentMonthCost: number;
+    inputTokensCost: number;
+    outputTokensCost: number;
+  };
+  users: {
+    total: number;
+  };
+  subjects: {
+    total: number;
+    withContent: number;
+  };
+}
+
+export async function getInstitutionById(id: string): Promise<InstitutionDetail | null> {
+  try {
+    const res = await fetch(`${API_URL}/institutions/${id}`, {
+      headers: await authHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return (json.data as InstitutionDetail) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getInstitutionDetailStats(id: string): Promise<InstitutionDetailStats | null> {
+  try {
+    const res = await fetch(`${API_URL}/institutions/${id}/stats`, {
+      headers: await authHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return (json.data as InstitutionDetailStats) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getInstitutions(): Promise<Institution[]> {
   try {
     const res = await fetch(`${API_URL}/institutions`, {

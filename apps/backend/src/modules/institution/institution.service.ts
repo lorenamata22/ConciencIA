@@ -63,6 +63,68 @@ export class InstitutionService {
     });
   }
 
+  async getDetailStats(id: string) {
+    const institution = await this.prisma.institution.findUnique({ where: { id } });
+    if (!institution) throw new NotFoundException('Instituição não encontrada');
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [tokenTotal, tokenMonth, totalUsers, totalSubjects, subjectsWithContent] =
+      await Promise.all([
+        this.prisma.aIUsage.aggregate({
+          where: { institution_id: id },
+          _sum: { prompt_tokens: true, response_tokens: true, cost: true },
+        }),
+        this.prisma.aIUsage.aggregate({
+          where: { institution_id: id, created_at: { gte: startOfMonth } },
+          _sum: { prompt_tokens: true, response_tokens: true, cost: true },
+        }),
+        this.prisma.user.count({ where: { institution_id: id } }),
+        this.prisma.subject.count({ where: { course: { institution_id: id } } }),
+        this.prisma.subject.count({
+          where: {
+            course: { institution_id: id },
+            files: { some: { is_ai_context: true } },
+          },
+        }),
+      ]);
+
+    const usedTokens =
+      (tokenTotal._sum.prompt_tokens ?? 0) + (tokenTotal._sum.response_tokens ?? 0);
+    const tokenLimit = institution.ai_token_limit;
+    const usagePercent =
+      tokenLimit && tokenLimit > 0
+        ? Math.min(100, Math.round((usedTokens / tokenLimit) * 100))
+        : 0;
+
+    const monthCost = tokenMonth._sum.cost ?? 0;
+    const monthPrompt = tokenMonth._sum.prompt_tokens ?? 0;
+    const monthResponse = tokenMonth._sum.response_tokens ?? 0;
+    const monthTotal = monthPrompt + monthResponse;
+    const inputCost = monthTotal > 0 ? monthCost * (monthPrompt / monthTotal) : 0;
+    const outputCost = monthTotal > 0 ? monthCost * (monthResponse / monthTotal) : 0;
+
+    return {
+      tokenUsage: {
+        usedTokens,
+        remainingTokens: tokenLimit ? Math.max(0, tokenLimit - usedTokens) : null,
+        tokenLimit,
+        usagePercent,
+        currentMonthCost: monthCost,
+        inputTokensCost: inputCost,
+        outputTokensCost: outputCost,
+      },
+      users: {
+        total: totalUsers,
+      },
+      subjects: {
+        total: totalSubjects,
+        withContent: subjectsWithContent,
+      },
+    };
+  }
+
   async getStats() {
     const startOfMonth = new Date();
     startOfMonth.setDate(1);

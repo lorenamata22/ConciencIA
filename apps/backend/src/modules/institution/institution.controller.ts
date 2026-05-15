@@ -34,6 +34,11 @@ export class InstitutionController {
     return this.institutionService.getStats();
   }
 
+  @Get(':id/stats')
+  getDetailStats(@Param('id') id: string) {
+    return this.institutionService.getDetailStats(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.institutionService.findOne(id);

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { Institution } from '@/lib/api/institution';
 
 const PAGE_SIZE = 6;
@@ -83,6 +84,7 @@ function Pagination({
 export function InstitutionsList({ institutions }: { institutions: Institution[] }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const router = useRouter();
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -101,7 +103,7 @@ export function InstitutionsList({ institutions }: { institutions: Institution[]
   }
 
   return (
-    <div className="rounded-2xl px-10 shadow-xl overflow-hidden">
+    <div className="rounded-2xl px-10 card-shadow overflow-hidden">
 
       {/* Toolbar da tabela */}
       <div className="flex items-center justify-between px-6 py-5">
@@ -143,12 +145,13 @@ export function InstitutionsList({ institutions }: { institutions: Institution[]
         paginated.map((inst) => (
           <div
             key={inst.id}
-            className="grid grid-cols-[2fr_2fr_1fr_auto] gap-4 items-center px-6 py-4 border-t border-brand-border"
+            className="grid grid-cols-[2fr_2fr_1fr_auto] gap-4 items-center px-6 py-4 border-t border-brand-border cursor-pointer hover:bg-brand-border/10 transition-colors"
+            onClick={() => router.push(`/admin/institutions/${inst.id}`)}
           >
             <span className="text-sm font-medium text-brand-brown truncate">{inst.name}</span>
             <span className="text-sm text-brand-label truncate">{inst.email ?? '—'}</span>
             <StatusBadge status={inst.status} />
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <Link
                 href={`/admin/institutions/${inst.id}/edit`}
                 className="w-9 h-9 flex items-center justify-center ps-1 rounded-lg border border-brand-border text-brand-label hover:bg-brand-border/30 transition-colors"
