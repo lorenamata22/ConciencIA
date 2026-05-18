@@ -95,6 +95,58 @@ export class InstitutionService {
     });
   }
 
+  async remove(id: string) {
+    const institution = await this.prisma.institution.findUnique({ where: { id } });
+    if (!institution) throw new NotFoundException('Instituição não encontrada');
+
+    await this.prisma.$transaction(async (tx) => {
+      const userIds = (await tx.user.findMany({ where: { institution_id: id }, select: { id: true } })).map(u => u.id);
+      const studentIds = (await tx.student.findMany({ where: { user_id: { in: userIds } }, select: { id: true } })).map(s => s.id);
+      const teacherIds = (await tx.teacher.findMany({ where: { user_id: { in: userIds } }, select: { id: true } })).map(t => t.id);
+      const courseIds = (await tx.course.findMany({ where: { institution_id: id }, select: { id: true } })).map(c => c.id);
+      const subjectIds = (await tx.subject.findMany({ where: { course_id: { in: courseIds } }, select: { id: true } })).map(s => s.id);
+      const classIds = (await tx.class.findMany({ where: { course_id: { in: courseIds } }, select: { id: true } })).map(c => c.id);
+      const moduleIds = (await tx.module.findMany({ where: { subject_id: { in: subjectIds } }, select: { id: true } })).map(m => m.id);
+      const conversationIds = (await tx.conversation.findMany({ where: { student_id: { in: studentIds } }, select: { id: true } })).map(c => c.id);
+      const activityIds = (await tx.activity.findMany({ where: { institution_id: id }, select: { id: true } })).map(a => a.id);
+      const fileIds = (await tx.file.findMany({ where: { institution_id: id }, select: { id: true } })).map(f => f.id);
+      const templateIds = (await tx.gradeTemplate.findMany({ where: { institution_id: id }, select: { id: true } })).map(t => t.id);
+
+      await tx.studentGrade.deleteMany({ where: { student_id: { in: studentIds } } });
+      await tx.studentActivity.deleteMany({ where: { activity_id: { in: activityIds } } });
+      await tx.favorite.deleteMany({ where: { student_id: { in: studentIds } } });
+      await tx.note.deleteMany({ where: { student_id: { in: studentIds } } });
+      await tx.topicProgress.deleteMany({ where: { student_id: { in: studentIds } } });
+      await tx.studentMetrics.deleteMany({ where: { student_id: { in: studentIds } } });
+      await tx.exam.deleteMany({ where: { student_id: { in: studentIds } } });
+      await tx.aIUsage.deleteMany({ where: { institution_id: id } });
+      await tx.alert.deleteMany({ where: { institution_id: id } });
+      await tx.conversationSummary.deleteMany({ where: { conversation_id: { in: conversationIds } } });
+      await tx.message.deleteMany({ where: { conversation_id: { in: conversationIds } } });
+      await tx.conversation.deleteMany({ where: { student_id: { in: studentIds } } });
+      await tx.studentClass.deleteMany({ where: { class_id: { in: classIds } } });
+      await tx.teacherClass.deleteMany({ where: { class_id: { in: classIds } } });
+      await tx.teacherSubject.deleteMany({ where: { subject_id: { in: subjectIds } } });
+      await tx.passwordResetToken.deleteMany({ where: { user_id: { in: userIds } } });
+      await tx.student.deleteMany({ where: { user_id: { in: userIds } } });
+      await tx.teacher.deleteMany({ where: { user_id: { in: userIds } } });
+      await tx.user.deleteMany({ where: { institution_id: id } });
+      await tx.embedding.deleteMany({ where: { file_id: { in: fileIds } } });
+      await tx.file.deleteMany({ where: { institution_id: id } });
+      await tx.activity.deleteMany({ where: { institution_id: id } });
+      await tx.gradeColumn.deleteMany({ where: { template_id: { in: templateIds } } });
+      await tx.gradeTemplate.deleteMany({ where: { institution_id: id } });
+      await tx.topic.deleteMany({ where: { module_id: { in: moduleIds } } });
+      await tx.module.deleteMany({ where: { subject_id: { in: subjectIds } } });
+      await tx.subject.deleteMany({ where: { course_id: { in: courseIds } } });
+      await tx.class.deleteMany({ where: { course_id: { in: courseIds } } });
+      await tx.course.deleteMany({ where: { institution_id: id } });
+      await tx.institution.delete({ where: { id } });
+    });
+
+    return { deleted: true };
+  }
+
   async deleteUser(institutionId: string, userId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, institution_id: institutionId },

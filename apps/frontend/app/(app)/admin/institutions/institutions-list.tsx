@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Institution } from '@/lib/api/institution';
+import { deleteInstitution } from './actions';
+import { FeedbackModal, ModalWarningIcon } from '@/components/ui/feedback-modal';
 
 const PAGE_SIZE = 6;
 
@@ -60,7 +62,7 @@ function Pagination({
               onClick={() => onPage(p)}
               className={`w-9 h-9 rounded-lg border text-sm transition-colors ${
                 p === page
-                  ? 'border-brand-border-focus bg-[#999DA3] text-white font-medium'
+                  ? 'border-brand-border bg-[#999DA3] text-white font-medium'
                   : 'border-brand-border text-brand-label hover:bg-brand-border/30'
               }`}
             >
@@ -84,7 +86,23 @@ function Pagination({
 export function InstitutionsList({ institutions }: { institutions: Institution[] }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  function handleDeleteClick(e: React.MouseEvent, inst: Institution) {
+    e.stopPropagation();
+    setDeleteTarget({ id: inst.id, name: inst.name });
+  }
+
+  function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    startTransition(async () => {
+      await deleteInstitution(deleteTarget.id);
+      setDeleteTarget(null);
+      router.refresh();
+    });
+  }
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -170,7 +188,10 @@ export function InstitutionsList({ institutions }: { institutions: Institution[]
                           <path d="M19.3563 0.654695C18.9432 0.235155 18.3791 5.66473e-06 17.7895 5.66473e-06H17.7829C17.192 -0.00133067 16.6238 0.233817 16.2054 0.651993L7.15106 9.70258C7.05481 9.79878 7 9.92971 7 10.066V12.4869C7 12.7702 7.22994 13 7.51334 13H9.93567C10.072 13 10.203 12.9452 10.2993 12.849L19.355 3.7998L19.3563 3.79847V3.79713C20.2146 2.926 20.2145 1.52582 19.3563 0.654695ZM9.72429 11.974H8.02653V10.2772L15.3591 2.95013L17.0555 4.64559L9.72429 11.974ZM18.6277 3.07425L17.7815 3.92L16.085 2.22453L16.9313 1.37745C17.1572 1.15165 17.4647 1.02474 17.7842 1.02608H17.7868C18.1023 1.02474 18.4045 1.15167 18.6264 1.37611C19.0903 1.84641 19.0916 2.60262 18.6277 3.07425Z" fill="#5F5E5C"/>
                         </svg>
                       </Link>
-                      <button className="w-9 h-9 flex items-center ps-0.5 justify-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 transition-colors">
+                      <button
+                        onClick={(e) => handleDeleteClick(e, inst)}
+                        className="w-9 h-9 flex items-center ps-0.5 justify-center rounded-lg border border-red-200 text-red-400 hover:bg-red-50 transition-colors"
+                      >
                         <svg width="13" height="13" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M13.5967 0.555664C13.6718 0.48054 13.7834 0.484605 13.8496 0.550781C13.9126 0.614018 13.9165 0.730719 13.8447 0.802734L7.80176 6.84668L7.44824 7.2002L13.8447 13.5967C13.9199 13.6718 13.9158 13.7834 13.8496 13.8496C13.7864 13.9129 13.6688 13.9168 13.5967 13.8447L7.2002 7.44824L6.84668 7.80176L0.802734 13.8447C0.727689 13.9195 0.616916 13.9155 0.550781 13.8496C0.487524 13.7864 0.483594 13.6688 0.555664 13.5967L6.95215 7.2002L6.59863 6.84668L0.555664 0.802734C0.480569 0.72761 0.484613 0.616949 0.550781 0.550781C0.61403 0.487532 0.730661 0.483623 0.802734 0.555664L6.84668 6.59863L7.2002 6.95215L13.5967 0.555664Z" fill="#D86262" stroke="#D86262"/>
                         </svg>
@@ -191,6 +212,39 @@ export function InstitutionsList({ institutions }: { institutions: Institution[]
         </span>
         <Pagination page={page} total={filtered.length} onPage={setPage} />
       </div>
+
+      <FeedbackModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        closeDisabled={isPending}
+        icon={<ModalWarningIcon />}
+        title="Eliminar institución"
+        titleColor="text-[#D86262]"
+        description={
+          <>
+            ¿Estás seguro de que deseas eliminar <strong>{deleteTarget?.name}</strong>?
+            <br />Esta acción no se puede deshacer.
+          </>
+        }
+        actions={
+          <div className="flex gap-3">
+            <button
+              onClick={() => setDeleteTarget(null)}
+              disabled={isPending}
+              className="flex-1 rounded-xl border border-brand-border py-2.5 text-sm font-medium text-brand-label hover:bg-brand-border/30 transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              disabled={isPending}
+              className="flex-1 rounded-xl bg-[#D86262] py-2.5 text-sm font-medium text-white hover:bg-[#c45555] transition-colors disabled:opacity-50"
+            >
+              {isPending ? 'Eliminando...' : 'Eliminar'}
+            </button>
+          </div>
+        }
+      />
     </div>
   );
 }

@@ -65,6 +65,11 @@ export class InstitutionController {
     return this.institutionService.update(id, dto);
   }
 
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.institutionService.remove(id);
+  }
+
   @Patch(':id/logo')
   @UseInterceptors(
     FileInterceptor('logo', {
