@@ -195,6 +195,34 @@ export async function updateInstitution(
   return res.json();
 }
 
+export async function getMyInstitution(): Promise<InstitutionDetail | null> {
+  try {
+    const res = await fetch(`${API_URL}/institutions/me`, {
+      headers: await authHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return (json.data as InstitutionDetail) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getMyInstitutionStats(): Promise<InstitutionDetailStats | null> {
+  try {
+    const res = await fetch(`${API_URL}/institutions/me/stats`, {
+      headers: await authHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return (json.data as InstitutionDetailStats) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getInstitutions(): Promise<Institution[]> {
   try {
     const res = await fetch(`${API_URL}/institutions`, {

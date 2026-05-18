@@ -18,12 +18,26 @@ import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { JwtPayload } from '../../common/decorators/current-user.decorator';
 
 @Controller('institutions')
 @UseGuards(RolesGuard)
 @Roles('super_admin')
 export class InstitutionController {
   constructor(private readonly institutionService: InstitutionService) {}
+
+  @Get('me')
+  @Roles('institution')
+  getMe(@CurrentUser() user: JwtPayload) {
+    return this.institutionService.findOne(user.institutionId);
+  }
+
+  @Get('me/stats')
+  @Roles('institution')
+  getMyStats(@CurrentUser() user: JwtPayload) {
+    return this.institutionService.getDetailStats(user.institutionId);
+  }
 
   @Post()
   create(@Body() dto: CreateInstitutionDto) {
