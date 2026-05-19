@@ -6,15 +6,8 @@ import { useRouter } from 'next/navigation';
 import { createClassAction } from '@/app/actions/class';
 import { FormField, inputClass } from '@/components/ui/form';
 import { FeedbackModal, ModalSuccessIcon, ModalErrorIcon } from '@/components/ui/feedback-modal';
-import type { CourseOption } from '@/lib/api/subject';
-import type { SubjectItem } from '@/lib/api/subject';
-
-const PERIOD_OPTIONS = [
-  'Matutino (8:00-12:30)',
-  'Vespertino (12:30-18:00)',
-  'Noturno (18:00-22:30)',
-  'Integral',
-];
+import { PeriodEditorModal } from '@/components/ui/period-editor-modal';
+import type { CourseOption, SubjectItem } from '@/lib/api/subject';
 
 function CourseSelect({
   courses,
@@ -81,10 +74,15 @@ function CourseSelect({
   );
 }
 
-function PeriodSelect() {
+function PeriodSelect({ options }: { options: string[] }) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+
+  // Se a opção selecionada for removida pelo editor, limpa a seleção
+  useEffect(() => {
+    if (selected && !options.includes(selected)) setSelected('');
+  }, [options, selected]);
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
@@ -112,18 +110,22 @@ function PeriodSelect() {
         </span>
       </button>
       {open && (
-        <ul className="absolute z-50 w-full rounded-xl border border-brand-border bg-brand-bg shadow-lg top-full mt-1">
-          {PERIOD_OPTIONS.map((opt) => (
-            <li
-              key={opt}
-              onMouseDown={() => { setSelected(opt); setOpen(false); }}
-              className={`px-4 py-2.5 text-sm cursor-pointer transition-colors hover:bg-brand-border/30 ${
-                selected === opt ? 'font-medium text-brand-brown' : 'text-brand-brown'
-              }`}
-            >
-              {opt}
-            </li>
-          ))}
+        <ul className="absolute z-50 w-full rounded-xl border border-brand-border bg-brand-bg shadow-lg top-full mt-1 max-h-56 overflow-y-auto">
+          {options.length === 0 ? (
+            <li className="px-4 py-2.5 text-sm text-brand-placeholder">No hay turnos configurados.</li>
+          ) : (
+            options.map((opt) => (
+              <li
+                key={opt}
+                onMouseDown={() => { setSelected(opt); setOpen(false); }}
+                className={`px-4 py-2.5 text-sm cursor-pointer transition-colors hover:bg-brand-border/30 ${
+                  selected === opt ? 'font-medium text-brand-brown' : 'text-brand-brown'
+                }`}
+              >
+                {opt}
+              </li>
+            ))
+          )}
         </ul>
       )}
     </div>
@@ -158,12 +160,16 @@ function SubjectsPreview({ subjects }: { subjects: SubjectItem[] }) {
 export function CreateClassForm({
   courses,
   subjects,
+  initialPeriodOptions,
 }: {
   courses: CourseOption[];
   subjects: SubjectItem[];
+  initialPeriodOptions: string[];
 }) {
   const [state, action, isPending] = useActionState(createClassAction, { error: null });
   const [showModal, setShowModal] = useState(false);
+  const [showPeriodEditor, setShowPeriodEditor] = useState(false);
+  const [periodOptions, setPeriodOptions] = useState(initialPeriodOptions);
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const router = useRouter();
 
@@ -219,6 +225,13 @@ export function CreateClassForm({
         }
       />
 
+      <PeriodEditorModal
+        open={showPeriodEditor}
+        onClose={() => setShowPeriodEditor(false)}
+        options={periodOptions}
+        onSave={setPeriodOptions}
+      />
+
       <div className="pt-10 px-10 md:px-30 pb-16">
         <div className="mt-15 mb-10">
           <Link
@@ -256,9 +269,25 @@ export function CreateClassForm({
               <CourseSelect courses={courses} onSelect={setSelectedCourseId} />
             </FormField>
 
-            <FormField label="Turno" required>
-              <PeriodSelect />
-            </FormField>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-brand-label">
+                  Turno<span className="ml-0.5">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowPeriodEditor(true)}
+                  className="flex items-center gap-1 text-xs text-brand-label hover:text-brand-brown transition-colors"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  Editar
+                </button>
+              </div>
+              <PeriodSelect options={periodOptions} />
+            </div>
 
             {selectedCourseId && (
               <div className="flex flex-col gap-3">

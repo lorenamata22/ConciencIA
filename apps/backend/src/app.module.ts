@@ -8,6 +8,7 @@ import { InstitutionModule } from './modules/institution/institution.module';
 import { CourseModule } from './modules/course/course.module';
 import { SubjectModule } from './modules/subject/subject.module';
 import { ClassModule } from './modules/class/class.module';
+import { PeriodOptionModule } from './modules/period-option/period-option.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
@@ -21,6 +22,7 @@ import { GlobalExceptionFilter } from './common/filters/exception.filter';
     CourseModule,
     SubjectModule,
     ClassModule,
+    PeriodOptionModule,
   ],
   controllers: [AppController],
   providers: [

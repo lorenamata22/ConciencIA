@@ -69,7 +69,8 @@ model Institution {
   alerts     Alert[]
   ai_usages  AIUsage[]
   activities Activity[]
-  templates  GradeTemplate[]
+  templates       GradeTemplate[]
+  period_options  PeriodOption[]
 
   @@index([id])
   @@map("institution")
@@ -526,4 +527,15 @@ model PasswordResetToken {
 
   @@index([token])
   @@map("password_reset_token")
+}
+
+model PeriodOption {
+  id             String @id @default(uuid())
+  institution_id String
+  label          String
+
+  institution Institution @relation(fields: [institution_id], references: [id])
+
+  @@index([institution_id])
+  @@map("period_option")
 }

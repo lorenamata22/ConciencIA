@@ -6,15 +6,9 @@ import { useRouter } from 'next/navigation';
 import { updateClassAction } from '@/app/actions/class';
 import { FormField, inputClass } from '@/components/ui/form';
 import { FeedbackModal, ModalSuccessIcon, ModalErrorIcon } from '@/components/ui/feedback-modal';
+import { PeriodEditorModal } from '@/components/ui/period-editor-modal';
 import type { CourseOption, SubjectItem } from '@/lib/api/subject';
 import type { ClassItem } from '@/lib/api/class';
-
-const PERIOD_OPTIONS = [
-  'Matutino (8:00-12:30)',
-  'Vespertino (12:30-18:00)',
-  'Noturno (18:00-22:30)',
-  'Integral',
-];
 
 function CourseSelect({
   courses,
@@ -81,10 +75,19 @@ function CourseSelect({
   );
 }
 
-function PeriodSelect({ defaultValue }: { defaultValue: string }) {
+function PeriodSelect({
+  options,
+  defaultValue,
+}: {
+  options: string[];
+  defaultValue: string;
+}) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(defaultValue);
   const ref = useRef<HTMLDivElement>(null);
+
+  // Se a opção selecionada for removida pelo editor, mantém o valor atual como texto
+  const displayOptions = options.includes(selected) ? options : [selected, ...options];
 
   useEffect(() => {
     function onMouseDown(e: MouseEvent) {
@@ -104,7 +107,7 @@ function PeriodSelect({ defaultValue }: { defaultValue: string }) {
           open ? 'border-brand-border-focus' : 'border-brand-border'
         } text-brand-brown`}
       >
-        <span className="truncate">{selected || 'Seleccionar turno'}</span>
+        <span className="truncate">{selected}</span>
         <span className={`shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="6 9 12 15 18 9" />
@@ -112,8 +115,8 @@ function PeriodSelect({ defaultValue }: { defaultValue: string }) {
         </span>
       </button>
       {open && (
-        <ul className="absolute z-50 w-full rounded-xl border border-brand-border bg-brand-bg shadow-lg top-full mt-1">
-          {PERIOD_OPTIONS.map((opt) => (
+        <ul className="absolute z-50 w-full rounded-xl border border-brand-border bg-brand-bg shadow-lg top-full mt-1 max-h-56 overflow-y-auto">
+          {displayOptions.map((opt) => (
             <li
               key={opt}
               onMouseDown={() => { setSelected(opt); setOpen(false); }}
@@ -159,14 +162,18 @@ export function EditClassForm({
   classItem,
   courses,
   subjects,
+  initialPeriodOptions,
 }: {
   classItem: ClassItem;
   courses: CourseOption[];
   subjects: SubjectItem[];
+  initialPeriodOptions: string[];
 }) {
   const boundAction = updateClassAction.bind(null, classItem.id);
   const [state, action, isPending] = useActionState(boundAction, { error: null });
   const [showModal, setShowModal] = useState(false);
+  const [showPeriodEditor, setShowPeriodEditor] = useState(false);
+  const [periodOptions, setPeriodOptions] = useState(initialPeriodOptions);
   const [selectedCourseId, setSelectedCourseId] = useState(classItem.course.id);
   const router = useRouter();
 
@@ -211,6 +218,13 @@ export function EditClassForm({
             </div>
           )
         }
+      />
+
+      <PeriodEditorModal
+        open={showPeriodEditor}
+        onClose={() => setShowPeriodEditor(false)}
+        options={periodOptions}
+        onSave={setPeriodOptions}
       />
 
       <div className="pt-10 px-10 md:px-30 pb-16">
@@ -258,9 +272,25 @@ export function EditClassForm({
               />
             </FormField>
 
-            <FormField label="Turno" required>
-              <PeriodSelect defaultValue={classItem.period} />
-            </FormField>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-brand-label">
+                  Turno<span className="ml-0.5">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowPeriodEditor(true)}
+                  className="flex items-center gap-1 text-xs text-brand-label hover:text-brand-brown transition-colors"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  Editar
+                </button>
+              </div>
+              <PeriodSelect options={periodOptions} defaultValue={classItem.period} />
+            </div>
 
             <div className="flex flex-col gap-3">
               <label className="text-sm font-medium text-brand-label">
