@@ -49,3 +49,34 @@ export async function getMyCourses(): Promise<CourseOption[]> {
     return [];
   }
 }
+
+export async function getMyCourse(courseId: string): Promise<CourseOption | null> {
+  try {
+    const courses = await getMyCourses();
+    return courses.find((c) => c.id === courseId) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function createCourse(data: { name: string; description?: string }): Promise<{ data: CourseOption | null; message: string; statusCode: number }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_URL}/courses/me`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  return { data: json.data ?? null, message: json.message ?? '', statusCode: res.status };
+}
+
+export async function updateCourse(courseId: string, data: { name: string; description?: string }): Promise<{ data: CourseOption | null; message: string; statusCode: number }> {
+  const headers = await authHeaders();
+  const res = await fetch(`${API_URL}/courses/me/${courseId}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  return { data: json.data ?? null, message: json.message ?? '', statusCode: res.status };
+}

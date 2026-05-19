@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCourseDto } from './dto/create-course.dto';
+import { UpdateCourseDto } from './dto/update-course.dto';
 
 @Injectable()
 export class CourseService {
@@ -21,6 +22,19 @@ export class CourseService {
         name: dto.name,
         description: dto.description,
       },
+    });
+  }
+
+  async update(institutionId: string, courseId: string, dto: UpdateCourseDto) {
+    const course = await this.prisma.course.findFirst({
+      where: { id: courseId, institution_id: institutionId },
+    });
+    if (!course) throw new NotFoundException('Curso não encontrado');
+
+    return this.prisma.course.update({
+      where: { id: courseId },
+      data: { name: dto.name, description: dto.description },
+      select: { id: true, name: true, description: true },
     });
   }
 

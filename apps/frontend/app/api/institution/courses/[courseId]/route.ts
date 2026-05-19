@@ -3,13 +3,34 @@ import { cookies } from 'next/headers';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+async function getToken() {
+  const cookieStore = await cookies();
+  return cookieStore.get('accessToken')?.value ?? '';
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ courseId: string }> },
+) {
+  const { courseId } = await params;
+  const token = await getToken();
+  const body = await request.json();
+
+  const response = await fetch(`${API_URL}/courses/me/${courseId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+
+  return Response.json(await response.json(), { status: response.status });
+}
+
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ courseId: string }> },
 ) {
   const { courseId } = await params;
-  const cookieStore = await cookies();
-  const token = cookieStore.get('accessToken')?.value ?? '';
+  const token = await getToken();
 
   const response = await fetch(`${API_URL}/courses/me/${courseId}`, {
     method: 'DELETE',
