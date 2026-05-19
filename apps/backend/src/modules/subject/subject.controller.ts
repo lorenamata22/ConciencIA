@@ -1,6 +1,21 @@
-import { Controller, Get, Post, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { SubjectService } from './subject.service';
 import { CreateSubjectDto } from './dto/create-subject.dto';
+import { UpdateSubjectDto } from './dto/update-subject.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -21,6 +36,36 @@ export class SubjectController {
   @Roles('institution')
   create(@CurrentUser() user: JwtPayload, @Body() dto: CreateSubjectDto) {
     return this.subjectService.create(user.institutionId, dto);
+  }
+
+  @Patch('me/:id')
+  @Roles('institution')
+  update(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Body() dto: UpdateSubjectDto) {
+    return this.subjectService.update(user.institutionId, id, dto);
+  }
+
+  @Post('me/:id/program')
+  @Roles('institution')
+  @UseInterceptors(
+    FileInterceptor('program', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowed = [
+          'application/pdf',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ];
+        cb(null, allowed.includes(file.mimetype));
+      },
+    }),
+  )
+  uploadProgram(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('Formato de arquivo não suportado. Use PDF ou DOCX.');
+    return this.subjectService.uploadProgram(user.institutionId, id, file);
   }
 
   @Delete('me/:id')

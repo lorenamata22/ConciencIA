@@ -9,11 +9,14 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { extname } from 'path';
+import { randomUUID } from 'crypto';
 import { InstitutionService } from './institution.service';
+import { StorageService } from '../storage/storage.service';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -25,7 +28,10 @@ import type { JwtPayload } from '../../common/decorators/current-user.decorator'
 @UseGuards(RolesGuard)
 @Roles('super_admin')
 export class InstitutionController {
-  constructor(private readonly institutionService: InstitutionService) {}
+  constructor(
+    private readonly institutionService: InstitutionService,
+    private readonly storageService: StorageService,
+  ) {}
 
   @Get('me')
   @Roles('institution')
@@ -99,13 +105,7 @@ export class InstitutionController {
   @Patch(':id/logo')
   @UseInterceptors(
     FileInterceptor('logo', {
-      storage: diskStorage({
-        destination: './uploads/logos',
-        filename: (req, file, cb) => {
-          const ext = extname(file.originalname);
-          cb(null, `${req.params.id}-${Date.now()}${ext}`);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
         const allowed = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
@@ -113,10 +113,14 @@ export class InstitutionController {
       },
     }),
   )
-  uploadLogo(
+  async uploadLogo(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.institutionService.updateLogo(id, file.filename);
+    if (!file) throw new BadRequestException('Formato de arquivo não suportado. Use PNG, JPG, SVG ou WebP.');
+    const ext = extname(file.originalname);
+    const storagePath = `logos/${randomUUID()}${ext}`;
+    const url = await this.storageService.upload(storagePath, file.buffer, file.mimetype);
+    return this.institutionService.updateLogo(id, url);
   }
 }

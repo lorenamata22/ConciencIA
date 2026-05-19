@@ -157,16 +157,13 @@ export class InstitutionService {
     return { deleted: true };
   }
 
-  async updateLogo(id: string, filename: string) {
+  async updateLogo(id: string, url: string) {
     const institution = await this.prisma.institution.findUnique({ where: { id } });
     if (!institution) throw new NotFoundException('Instituição não encontrada');
 
-    const port = process.env.BACKEND_PORT ?? '3001';
-    const logoUrl = `http://localhost:${port}/uploads/logos/${filename}`;
-
     return this.prisma.institution.update({
       where: { id },
-      data: { logo_url: logoUrl },
+      data: { logo_url: url },
     });
   }
 
