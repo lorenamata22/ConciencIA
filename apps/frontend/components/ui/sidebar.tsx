@@ -97,10 +97,10 @@ function UsersIcon({ className }: { className?: string }) {
 
 function UserIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
+    <svg className={className}  width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9.698 0.100342V0.101318L9.69995 0.100342L10.1931 0.112061C15.2631 0.369268 19.2996 4.56735 19.2996 9.69995C19.2996 12.2534 18.2998 14.5741 16.6716 16.2947C16.6703 16.2963 16.6705 16.2986 16.6697 16.2996C16.6667 16.3031 16.6636 16.3056 16.6628 16.3064L16.6619 16.3054C16.6492 16.3208 16.6357 16.3351 16.6208 16.3484L16.6218 16.3494C14.8743 18.1672 12.4181 19.2996 9.69995 19.2996C4.40107 19.2994 0.100342 14.9979 0.100342 9.69995C0.100342 4.40219 4.40025 0.103095 9.69702 0.101318V0.100342H9.698ZM9.69995 10.3367C6.45359 10.3368 3.80838 12.7646 3.45874 15.9119C5.05317 17.5138 7.25866 18.5065 9.69995 18.5066C12.1423 18.5066 14.3496 17.5126 15.9441 15.9089C15.5934 12.7632 12.9455 10.3367 9.69995 10.3367ZM9.69995 0.893311C4.83328 0.893809 0.894287 4.83335 0.894287 9.69995C0.894287 11.756 1.59908 13.6452 2.77808 15.1433C3.31888 12.5809 5.24052 10.5364 7.7312 9.81909C6.51394 9.13055 5.69034 7.82421 5.69019 6.32788C5.69019 4.1167 7.48858 2.31527 9.69995 2.31519C11.9113 2.31519 13.7117 4.11655 13.7117 6.32788C13.7115 7.82453 12.8865 9.13067 11.6687 9.81909C14.1599 10.5355 16.0822 12.5793 16.6238 15.1414C17.8025 13.6439 18.5066 11.7559 18.5066 9.69995C18.5066 4.83304 14.567 0.893311 9.69995 0.893311ZM9.69995 3.10913C7.92001 3.10932 6.48511 4.54773 6.48511 6.32788C6.48534 8.10771 7.91998 9.54254 9.69995 9.54272C11.4802 9.54272 12.9175 8.10782 12.9177 6.32788C12.9177 4.54763 11.4802 3.10913 9.69995 3.10913Z" fill="currentColor" stroke="currentColor" stroke-width="0.2"/>
     </svg>
+
   );
 }
 
@@ -192,9 +192,11 @@ const NAV_SECTIONS_MENU: NavSection[] = [
       { name: 'Materiales',    href: '/teacher/materials', Icon: FolderIcon,     roles: ['teacher'] },
       { name: 'Actividades',   href: '/teacher/activities',Icon: CheckSquareIcon,roles: ['teacher'] },
       { name: 'Notas',         href: '/teacher/grades',    Icon: ClipboardIcon,  roles: ['teacher'] },
-      { name: 'Home',     href: '/institution',       Icon: HomeIcon,       roles: ['institution'] },
-      { name: 'Cursos',        href: '/institution/courses',  Icon: BookIcon,    roles: ['institution'] },
-      { name: 'Turmas',        href: '/institution/classes',  Icon: UsersIcon,   roles: ['institution'] },
+      { name: 'Home',        href: '/institution',          Icon: HomeIcon,       roles: ['institution'] },
+      { name: 'Usuarios',    href: '/institution/users',    Icon: UserIcon,       roles: ['institution'] },
+      { name: 'Cursos',      href: '/institution/courses',  Icon: BookIcon,       roles: ['institution'] },
+      { name: 'Asignaturas', href: '/institution/subjects', Icon: BookOpenIcon,   roles: ['institution'] },
+      { name: 'Turmas',      href: '/institution/classes',  Icon: UsersIcon,      roles: ['institution'] },
       { name: 'Profesores',    href: '/institution/teachers', Icon: UserIcon,    roles: ['institution'] },
       { name: 'Alumnos',       href: '/institution/students', Icon: UserIcon,    roles: ['institution'] },
       { name: 'Notas',         href: '/institution/grades',   Icon: ClipboardIcon,roles: ['institution'] },

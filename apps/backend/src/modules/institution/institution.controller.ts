@@ -39,6 +39,18 @@ export class InstitutionController {
     return this.institutionService.getDetailStats(user.institutionId);
   }
 
+  @Get('me/users')
+  @Roles('institution')
+  getMyUsers(@CurrentUser() user: JwtPayload) {
+    return this.institutionService.getUsers(user.institutionId);
+  }
+
+  @Delete('me/users/:userId')
+  @Roles('institution')
+  deleteMyUser(@CurrentUser() user: JwtPayload, @Param('userId') userId: string) {
+    return this.institutionService.deleteUser(user.institutionId, userId);
+  }
+
   @Post()
   create(@Body() dto: CreateInstitutionDto) {
     return this.institutionService.create(dto);

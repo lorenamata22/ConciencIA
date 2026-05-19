@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { getMyCourses } from '@/lib/api/subject';
-import { CoursesList } from './courses-list';
+import { getMySubjects } from '@/lib/api/subject';
+import { SubjectsList } from './subjects-list';
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('es-ES', {
@@ -10,8 +10,8 @@ function formatDate(dateStr: string) {
   });
 }
 
-export default async function InstitutionCoursesPage() {
-  const courses = await getMyCourses();
+export default async function InstitutionSubjectsPage() {
+  const subjects = await getMySubjects();
   const lastUpdate = formatDate(new Date().toISOString());
 
   return (
@@ -31,7 +31,7 @@ export default async function InstitutionCoursesPage() {
 
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-10 gap-4">
         <div>
-          <h1 className="text-4xl text-brand">Cursos</h1>
+          <h1 className="text-4xl text-brand">Asignaturas</h1>
           <p className="text-sm text-brand-label mt-1">Ultima atualización: {lastUpdate}</p>
         </div>
         <div className="flex items-center gap-3">
@@ -43,18 +43,18 @@ export default async function InstitutionCoursesPage() {
             Exportar datos
           </button>
           <Link
-            href="/institution/courses/new"
+            href="/institution/subjects/new"
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-[#999DA3] hover:bg-[#999DA3]/80 transition-colors"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            Crear curso
+            Crear asignatura
           </Link>
         </div>
       </div>
 
-      <CoursesList courses={courses} />
+      <SubjectsList subjects={subjects} />
 
     </div>
   );

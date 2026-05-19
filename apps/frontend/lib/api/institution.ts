@@ -195,6 +195,20 @@ export async function updateInstitution(
   return res.json();
 }
 
+export async function getMyInstitutionUsers(): Promise<InstitutionUser[]> {
+  try {
+    const res = await fetch(`${API_URL}/institutions/me/users`, {
+      headers: await authHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json.data as InstitutionUser[]) ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getMyInstitution(): Promise<InstitutionDetail | null> {
   try {
     const res = await fetch(`${API_URL}/institutions/me`, {
