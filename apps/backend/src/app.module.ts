@@ -9,6 +9,8 @@ import { CourseModule } from './modules/course/course.module';
 import { SubjectModule } from './modules/subject/subject.module';
 import { ClassModule } from './modules/class/class.module';
 import { PeriodOptionModule } from './modules/period-option/period-option.module';
+import { TeacherModule } from './modules/teacher/teacher.module';
+import { StudentModule } from './modules/student/student.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
@@ -23,6 +25,8 @@ import { GlobalExceptionFilter } from './common/filters/exception.filter';
     SubjectModule,
     ClassModule,
     PeriodOptionModule,
+    TeacherModule,
+    StudentModule,
   ],
   controllers: [AppController],
   providers: [

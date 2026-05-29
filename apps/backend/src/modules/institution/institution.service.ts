@@ -150,10 +150,35 @@ export class InstitutionService {
   async deleteUser(institutionId: string, userId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, institution_id: institutionId },
+      include: {
+        teacher: { select: { id: true } },
+        student: { select: { id: true } },
+      },
     });
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
-    await this.prisma.user.delete({ where: { id: userId } });
+    await this.prisma.$transaction(async (tx) => {
+      if (user.teacher) {
+        await tx.teacherSubject.deleteMany({ where: { teacher_id: user.teacher.id } });
+        await tx.teacherClass.deleteMany({ where: { teacher_id: user.teacher.id } });
+        await tx.teacher.delete({ where: { id: user.teacher.id } });
+      }
+
+      if (user.student) {
+        await tx.studentGrade.deleteMany({ where: { student_id: user.student.id } });
+        await tx.studentActivity.deleteMany({ where: { student_id: user.student.id } });
+        await tx.favorite.deleteMany({ where: { student_id: user.student.id } });
+        await tx.note.deleteMany({ where: { student_id: user.student.id } });
+        await tx.topicProgress.deleteMany({ where: { student_id: user.student.id } });
+        await tx.studentMetrics.deleteMany({ where: { student_id: user.student.id } });
+        await tx.exam.deleteMany({ where: { student_id: user.student.id } });
+        await tx.studentClass.deleteMany({ where: { student_id: user.student.id } });
+        await tx.student.delete({ where: { id: user.student.id } });
+      }
+
+      await tx.user.delete({ where: { id: userId } });
+    });
+
     return { deleted: true };
   }
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import type { InstitutionUser } from '@/lib/api/institution';
 import { FeedbackModal, ModalErrorIcon, ModalWarningIcon } from '@/components/ui/feedback-modal';
 
@@ -14,6 +15,7 @@ const USER_TYPE_CONFIG: Record<string, { label: string; dot: string; pill: strin
 
 type ModalState =
   | { phase: 'idle' }
+  | { phase: 'select-type' }
   | { phase: 'confirm'; userId: string; userName: string }
   | { phase: 'deleting'; userId: string; userName: string }
   | { phase: 'error' };
@@ -76,7 +78,75 @@ function Pagination({ page, total, onPage }: { page: number; total: number; onPa
   );
 }
 
+function SelectTypeModal({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 px-10 py-10 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-brand-label hover:text-brand-brown transition-colors"
+          aria-label="Cerrar"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+
+        <h2 className="text-xl font-semibold text-brand-brown mb-1">Nuevo usuario</h2>
+        <p className="text-sm text-brand-label mb-8">
+          Selecciona el tipo de usuario que deseas registrar.
+        </p>
+
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={() => router.push('/institution/users/new/teacher')}
+            className="flex items-center gap-4 px-5 py-4 rounded-xl border border-brand-border hover:border-brand-border-focus hover:bg-brand-border/10 transition-colors text-left group"
+          >
+            <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center shrink-0 group-hover:bg-purple-100 transition-colors">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9B86BD" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-brand-brown">Profesor</p>
+              <p className="text-xs text-brand-label mt-0.5">Docente con acceso a clases y asignaturas</p>
+            </div>
+            <svg className="ml-auto shrink-0 text-brand-label" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+
+          <button
+            onClick={() => router.push('/institution/users/new/student')}
+            className="flex items-center gap-4 px-5 py-4 rounded-xl border border-brand-border hover:border-brand-border-focus hover:bg-brand-border/10 transition-colors text-left group"
+          >
+            <div className="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center shrink-0 group-hover:bg-teal-100 transition-colors">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6DBCB4" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-brand-brown">Estudiante</p>
+              <p className="text-xs text-brand-label mt-0.5">Accede a clases y asignaturas asignadas</p>
+            </div>
+            <svg className="ml-auto shrink-0 text-brand-label" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function InstitutionUsersList({ users: initialUsers }: { users: InstitutionUser[] }) {
+  const router = useRouter();
   const [users, setUsers] = useState(initialUsers);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -101,6 +171,12 @@ export function InstitutionUsersList({ users: initialUsers }: { users: Instituti
     setModal({ phase: 'confirm', userId: user.id, userName: user.name });
   }
 
+  function handleEdit(user: InstitutionUser) {
+    if (user.user_type === 'teacher' || user.user_type === 'student') {
+      router.push(`/institution/users/${user.id}/edit`);
+    }
+  }
+
   function confirmDelete() {
     if (modal.phase !== 'confirm') return;
     const { userId, userName } = modal;
@@ -123,8 +199,12 @@ export function InstitutionUsersList({ users: initialUsers }: { users: Instituti
 
   return (
     <>
+      {modal.phase === 'select-type' && (
+        <SelectTypeModal onClose={() => setModal({ phase: 'idle' })} />
+      )}
+
       <FeedbackModal
-        open={modal.phase !== 'idle'}
+        open={modal.phase === 'confirm' || modal.phase === 'deleting' || modal.phase === 'error'}
         onClose={() => setModal({ phase: 'idle' })}
         closeDisabled={isDeleting}
         icon={isError ? <ModalErrorIcon /> : <ModalWarningIcon />}
@@ -168,22 +248,33 @@ export function InstitutionUsersList({ users: initialUsers }: { users: Instituti
 
       <div className="rounded-2xl px-10 card-shadow overflow-hidden">
 
-        {/* Toolbar da tabela */}
+        {/* Toolbar */}
         <div className="flex items-center justify-between px-6 py-5">
           <span className="text-sm font-semibold text-brand-brown">Usuarios registrados</span>
-          <div className="relative w-72">
-            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-placeholder">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
+          <div className="flex items-center gap-3">
+            <div className="relative w-64">
+              <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-placeholder">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Buscar usuario..."
+                value={search}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="w-full rounded-xl border border-brand-border pl-9 pr-4 py-2.5 text-sm text-brand-brown placeholder:text-brand-placeholder focus:outline-none focus:border-brand-border-focus transition-colors"
+              />
             </div>
-            <input
-              type="text"
-              placeholder="Buscar usuario..."
-              value={search}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-full rounded-xl border border-brand-border pl-9 pr-4 py-2.5 text-sm text-brand-brown placeholder:text-brand-placeholder focus:outline-none focus:border-brand-border-focus transition-colors"
-            />
+            <button
+              onClick={() => setModal({ phase: 'select-type' })}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-[#999DA3] hover:bg-[#999DA3]/80 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Nuevo usuario
+            </button>
           </div>
         </div>
 
@@ -223,15 +314,29 @@ export function InstitutionUsersList({ users: initialUsers }: { users: Instituti
                       <UserTypeBadge type={user.user_type} />
                     </td>
                     <td className="pl-4 pr-6 py-4 border-t border-brand-border">
-                      <button
-                        onClick={() => requestDelete(user)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg border border-red-300 text-red-500 hover:bg-red-50 transition-colors"
-                        title="Eliminar usuario"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {(user.user_type === 'teacher' || user.user_type === 'student') && (
+                          <button
+                            onClick={() => handleEdit(user)}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-brand-border text-brand-label hover:bg-brand-border/30 transition-colors"
+                            title="Editar usuario"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => requestDelete(user)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg border border-red-300 text-red-500 hover:bg-red-50 transition-colors"
+                          title="Eliminar usuario"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

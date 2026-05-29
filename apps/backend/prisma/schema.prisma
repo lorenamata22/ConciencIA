@@ -82,6 +82,7 @@ model User {
   name           String
   email          String   @unique
   password       String
+  phone          String?
   user_type      UserType
   ai_token_limit Int?
   is_minor       Boolean  @default(false)

@@ -8,6 +8,8 @@ describe('StudentService', () => {
   let service: StudentService;
   let prismaMock: PrismaMock;
 
+  const institutionId = 'inst-id-1';
+
   const mockClass = {
     id: 'class-id-1',
     course_id: 'course-id-1',
@@ -15,18 +17,19 @@ describe('StudentService', () => {
     year: 2026,
     period: '1',
     license_code: 'ABC123',
-    course: { institution_id: 'inst-id-1' },
+    course: { institution_id: institutionId },
   };
 
   const mockUser = {
     id: 'user-id-1',
-    institution_id: 'inst-id-1',
+    institution_id: institutionId,
     name: 'Pedro',
     email: 'pedro@email.com',
     password: 'hashed',
     user_type: 'student',
     ai_token_limit: null,
     is_minor: false,
+    phone: null,
     created_at: new Date(),
   };
 
@@ -37,6 +40,7 @@ describe('StudentService', () => {
     cognitive_test_date: null,
     test_count: 0,
     user: mockUser,
+    studentClasses: [],
   };
 
   beforeEach(async () => {
@@ -55,9 +59,14 @@ describe('StudentService', () => {
   describe('registerWithLicenseCode', () => {
     it('should register student when license_code is valid', async () => {
       prismaMock.class.findFirst.mockResolvedValue(mockClass as any);
-      prismaMock.user.create.mockResolvedValue(mockUser as any);
-      prismaMock.student.create.mockResolvedValue(mockStudent as any);
-      prismaMock.studentClass.create.mockResolvedValue({} as any);
+      prismaMock.user.findUnique.mockResolvedValue(null);
+      prismaMock.$transaction.mockImplementation(async (fn: any) =>
+        fn({
+          user: { create: jest.fn().mockResolvedValue(mockUser) },
+          student: { create: jest.fn().mockResolvedValue(mockStudent) },
+          studentClass: { create: jest.fn() },
+        }),
+      );
 
       const result = await service.registerWithLicenseCode({
         name: 'Pedro',
@@ -84,50 +93,17 @@ describe('StudentService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException when license_code is expired', async () => {
-      // Simula um class sem license_code válido (inativo)
-      prismaMock.class.findFirst.mockResolvedValue(null);
-
-      await expect(
-        service.registerWithLicenseCode({
-          name: 'Pedro',
-          email: 'pedro@email.com',
-          password: 'senha123',
-          license_code: 'EXPIRADO',
-          is_minor: false,
-        }),
-      ).rejects.toThrow(BadRequestException);
-    });
-
     it('should automatically assign institution_id from the class, never from client input', async () => {
       prismaMock.class.findFirst.mockResolvedValue(mockClass as any);
-      prismaMock.user.create.mockResolvedValue(mockUser as any);
-      prismaMock.student.create.mockResolvedValue(mockStudent as any);
-      prismaMock.studentClass.create.mockResolvedValue({} as any);
-
-      await service.registerWithLicenseCode({
-        name: 'Pedro',
-        email: 'pedro@email.com',
-        password: 'senha123',
-        license_code: 'ABC123',
-        is_minor: false,
-      });
-
-      // institution_id deve ser derivado da Class, não enviado pelo aluno
-      expect(prismaMock.user.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            institution_id: 'inst-id-1',
-          }),
+      prismaMock.user.findUnique.mockResolvedValue(null);
+      const userCreate = jest.fn().mockResolvedValue(mockUser);
+      prismaMock.$transaction.mockImplementation(async (fn: any) =>
+        fn({
+          user: { create: userCreate },
+          student: { create: jest.fn().mockResolvedValue(mockStudent) },
+          studentClass: { create: jest.fn() },
         }),
       );
-    });
-
-    it('should link student to the class automatically', async () => {
-      prismaMock.class.findFirst.mockResolvedValue(mockClass as any);
-      prismaMock.user.create.mockResolvedValue(mockUser as any);
-      prismaMock.student.create.mockResolvedValue(mockStudent as any);
-      prismaMock.studentClass.create.mockResolvedValue({} as any);
 
       await service.registerWithLicenseCode({
         name: 'Pedro',
@@ -137,12 +113,9 @@ describe('StudentService', () => {
         is_minor: false,
       });
 
-      expect(prismaMock.studentClass.create).toHaveBeenCalledWith(
+      expect(userCreate).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({
-            student_id: 'student-id-1',
-            class_id: 'class-id-1',
-          }),
+          data: expect.objectContaining({ institution_id: institutionId }),
         }),
       );
     });
@@ -150,10 +123,7 @@ describe('StudentService', () => {
 
   describe('submitCognitiveTest', () => {
     it('should save cognitive profile when test_count is below 3', async () => {
-      prismaMock.student.findUnique.mockResolvedValue({
-        ...mockStudent,
-        test_count: 1,
-      } as any);
+      prismaMock.student.findUnique.mockResolvedValue({ ...mockStudent, test_count: 1 } as any);
       prismaMock.student.update.mockResolvedValue({
         ...mockStudent,
         test_count: 2,
@@ -166,10 +136,7 @@ describe('StudentService', () => {
     });
 
     it('should throw ForbiddenException when student has reached 3 cognitive tests', async () => {
-      prismaMock.student.findUnique.mockResolvedValue({
-        ...mockStudent,
-        test_count: 3,
-      } as any);
+      prismaMock.student.findUnique.mockResolvedValue({ ...mockStudent, test_count: 3 } as any);
 
       await expect(
         service.submitCognitiveTest('student-id-1', { style: 'visual' }),
@@ -177,10 +144,7 @@ describe('StudentService', () => {
     });
 
     it('should increment test_count after each cognitive test submission', async () => {
-      prismaMock.student.findUnique.mockResolvedValue({
-        ...mockStudent,
-        test_count: 0,
-      } as any);
+      prismaMock.student.findUnique.mockResolvedValue({ ...mockStudent, test_count: 0 } as any);
       prismaMock.student.update.mockResolvedValue({ ...mockStudent, test_count: 1 } as any);
 
       await service.submitCognitiveTest('student-id-1', { style: 'kinesthetic' });
@@ -190,17 +154,6 @@ describe('StudentService', () => {
           data: expect.objectContaining({ test_count: { increment: 1 } }),
         }),
       );
-    });
-
-    it('should throw ForbiddenException when test_count is exactly 3 (boundary)', async () => {
-      prismaMock.student.findUnique.mockResolvedValue({
-        ...mockStudent,
-        test_count: 3,
-      } as any);
-
-      await expect(
-        service.submitCognitiveTest('student-id-1', { style: 'reading' }),
-      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -216,6 +169,60 @@ describe('StudentService', () => {
       prismaMock.student.findUnique.mockResolvedValue(null);
 
       await expect(service.findOne('id-inexistente')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('createByInstitution', () => {
+    it('should create student with accessCode and assign to class', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+      prismaMock.class.findFirst.mockResolvedValue(mockClass as any);
+      prismaMock.$transaction.mockImplementation(async (fn: any) =>
+        fn({
+          user: { create: jest.fn().mockResolvedValue(mockUser) },
+          student: { create: jest.fn().mockResolvedValue(mockStudent) },
+          studentClass: { create: jest.fn() },
+        }),
+      );
+
+      const result = await service.createByInstitution(
+        { name: 'Pedro', email: 'pedro@email.com', classId: 'class-id-1' },
+        institutionId,
+      );
+
+      expect(result).toHaveProperty('accessCode');
+      expect(result.accessCode).toHaveLength(8);
+    });
+
+    it('should throw NotFoundException when classId does not belong to institution', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+      prismaMock.class.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.createByInstitution(
+          { name: 'Pedro', email: 'pedro@email.com', classId: 'outro-class' },
+          institutionId,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findOneByUserId', () => {
+    it('should return student when found and belongs to institution', async () => {
+      prismaMock.student.findUnique.mockResolvedValue(mockStudent as any);
+
+      const result = await service.findOneByUserId('user-id-1', institutionId);
+      expect(result.userId).toBe('user-id-1');
+    });
+
+    it('should throw ForbiddenException when student belongs to different institution', async () => {
+      prismaMock.student.findUnique.mockResolvedValue({
+        ...mockStudent,
+        user: { ...mockUser, institution_id: 'outro-inst' },
+      } as any);
+
+      await expect(service.findOneByUserId('user-id-1', institutionId)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 });

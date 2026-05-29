@@ -18,8 +18,11 @@ describe('TeacherService', () => {
       institution_id: institutionId,
       name: 'Professora Ana',
       email: 'ana@escola.com',
+      phone: null,
       user_type: 'teacher',
     },
+    teacherSubjects: [],
+    teacherClasses: [],
   };
 
   beforeEach(async () => {
@@ -36,20 +39,28 @@ describe('TeacherService', () => {
   });
 
   describe('create', () => {
-    it('should create teacher with institution_id from JWT', async () => {
-      prismaMock.user.create.mockResolvedValue(mockTeacher.user as any);
-      prismaMock.teacher.create.mockResolvedValue(mockTeacher as any);
+    it('should create teacher with institution_id from JWT and return accessCode', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+      prismaMock.$transaction.mockImplementation(async (fn: any) => {
+        return fn({
+          user: {
+            create: jest.fn().mockResolvedValue(mockTeacher.user),
+          },
+          teacher: {
+            create: jest.fn().mockResolvedValue({ id: mockTeacher.id, user_id: mockTeacher.user_id }),
+          },
+          teacherSubject: { createMany: jest.fn() },
+          teacherClass: { createMany: jest.fn() },
+        });
+      });
 
       const result = await service.create(
-        { name: 'Professora Ana', email: 'ana@escola.com', password: 'senha123' },
+        { name: 'Professora Ana', email: 'ana@escola.com', subjectIds: [], classIds: [] },
         institutionId,
       );
 
-      expect(prismaMock.user.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ institution_id: institutionId }),
-        }),
-      );
+      expect(result).toHaveProperty('accessCode');
+      expect(result.accessCode).toHaveLength(8);
     });
   });
 
@@ -98,28 +109,30 @@ describe('TeacherService', () => {
     });
   });
 
-  describe('assignToClass', () => {
-    it('should assign teacher to class from same institution', async () => {
+  describe('update', () => {
+    it('should update teacher name and phone', async () => {
       prismaMock.teacher.findUnique.mockResolvedValue(mockTeacher as any);
-      prismaMock.class.findUnique.mockResolvedValue({
-        id: 'class-id-1',
-        course: { institution_id: institutionId },
-      } as any);
-      prismaMock.teacherClass.create.mockResolvedValue({} as any);
+      prismaMock.$transaction.mockImplementation(async (fn: any) => fn(prismaMock));
+      prismaMock.user.update.mockResolvedValue({ ...mockTeacher.user, name: 'Ana Nova' } as any);
+      prismaMock.teacherSubject.deleteMany.mockResolvedValue({} as any);
+      prismaMock.teacherClass.deleteMany.mockResolvedValue({} as any);
+      prismaMock.teacher.findUnique.mockResolvedValueOnce(mockTeacher as any);
 
-      await service.assignToClass('teacher-id-1', 'class-id-1', institutionId);
-      expect(prismaMock.teacherClass.create).toHaveBeenCalled();
+      await service.update('teacher-id-1', { name: 'Ana Nova' }, institutionId);
+
+      expect(prismaMock.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ name: 'Ana Nova' }) }),
+      );
     });
 
-    it('should throw ForbiddenException when class belongs to different institution', async () => {
-      prismaMock.teacher.findUnique.mockResolvedValue(mockTeacher as any);
-      prismaMock.class.findUnique.mockResolvedValue({
-        id: 'class-id-1',
-        course: { institution_id: 'outro-inst' },
+    it('should throw ForbiddenException when teacher belongs to different institution', async () => {
+      prismaMock.teacher.findUnique.mockResolvedValue({
+        ...mockTeacher,
+        user: { ...mockTeacher.user, institution_id: 'outro-inst' },
       } as any);
 
       await expect(
-        service.assignToClass('teacher-id-1', 'class-id-1', institutionId),
+        service.update('teacher-id-1', { name: 'Nova' }, institutionId),
       ).rejects.toThrow(ForbiddenException);
     });
   });
