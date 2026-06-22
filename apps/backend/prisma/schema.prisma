@@ -46,6 +46,12 @@ enum GradeType {
   pass_fail
 }
 
+// Público-alvo de um evento do calendário (broadcast)
+enum AudienceType {
+  teacher
+  student
+}
+
 // ─── Entidades principais ───────────────────────────────────���────────────────
 
 model Institution {
@@ -63,14 +69,14 @@ model Institution {
   ai_token_limit      Int?
   created_at          DateTime @default(now())
 
-  users      User[]
-  courses    Course[]
-  files      File[]
-  alerts     Alert[]
-  ai_usages  AIUsage[]
-  activities Activity[]
-  templates       GradeTemplate[]
-  period_options  PeriodOption[]
+  users          User[]
+  courses        Course[]
+  files          File[]
+  alerts         Alert[]
+  ai_usages      AIUsage[]
+  events         Event[]
+  templates      GradeTemplate[]
+  period_options PeriodOption[]
 
   @@index([id])
   @@map("institution")
@@ -88,11 +94,12 @@ model User {
   is_minor       Boolean  @default(false)
   created_at     DateTime @default(now())
 
-  institution          Institution          @relation(fields: [institution_id], references: [id])
-  student              Student?
-  teacher              Teacher?
-  ai_usages            AIUsage[]
+  institution           Institution          @relation(fields: [institution_id], references: [id])
+  student               Student?
+  teacher               Teacher?
+  ai_usages             AIUsage[]
   password_reset_tokens PasswordResetToken[]
+  createdEvents         Event[]
 
   @@index([institution_id])
   @@map("user")
@@ -105,17 +112,16 @@ model Student {
   cognitive_test_date DateTime?
   test_count          Int       @default(0)
 
-  user              User              @relation(fields: [user_id], references: [id])
-  studentClasses    StudentClass[]
-  conversations     Conversation[]
-  exams             Exam[]
-  topicProgresses   TopicProgress[]
-  studentMetrics    StudentMetrics[]
-  alerts            Alert[]
-  notes             Note[]
-  favorites         Favorite[]
-  studentActivities StudentActivity[]
-  studentGrades     StudentGrade[]
+  user            User             @relation(fields: [user_id], references: [id])
+  studentClasses  StudentClass[]
+  conversations   Conversation[]
+  exams           Exam[]
+  topicProgresses TopicProgress[]
+  studentMetrics  StudentMetrics[]
+  alerts          Alert[]
+  notes           Note[]
+  favorites       Favorite[]
+  studentGrades   StudentGrade[]
 
   @@map("student")
 }
@@ -127,7 +133,6 @@ model Teacher {
   user            User             @relation(fields: [user_id], references: [id])
   teacherClasses  TeacherClass[]
   teacherSubjects TeacherSubject[]
-  activities      Activity[]
 
   @@map("teacher")
 }
@@ -157,7 +162,7 @@ model Class {
   course         Course         @relation(fields: [course_id], references: [id])
   studentClasses StudentClass[]
   teacherClasses TeacherClass[]
-  activities     Activity[]
+  eventClasses   EventClass[]
 
   @@map("class")
 }
@@ -175,7 +180,7 @@ model Subject {
   exams           Exam[]
   studentMetrics  StudentMetrics[]
   teacherSubjects TeacherSubject[]
-  activities      Activity[]
+  events          Event[]
 
   @@map("subject")
 }
@@ -204,7 +209,7 @@ model Topic {
   topicProgresses TopicProgress[]
   conversations   Conversation[]
   exams           Exam[]
-  activities      Activity[]
+  events          Event[]
 
   @@map("topic")
 }
@@ -248,15 +253,15 @@ model File {
 }
 
 model Embedding {
-  id         String   @id @default(uuid())
-  file_id    String
-  chunk_text String
+  id               String                       @id @default(uuid())
+  file_id          String
+  chunk_text       String
   // Dimensão 1024 — Voyage AI
   // Índice HNSW criado via migration raw SQL — não remover:
   // CREATE INDEX ON embedding USING hnsw (embedding_vector vector_cosine_ops);
   embedding_vector Unsupported("vector(1024)")?
   metadata         Json
-  created_at       DateTime @default(now())
+  created_at       DateTime                     @default(now())
 
   file File @relation(fields: [file_id], references: [id])
 
@@ -271,9 +276,9 @@ model Conversation {
   topic_id   String?
   created_at DateTime @default(now())
 
-  student   Student              @relation(fields: [student_id], references: [id])
-  subject   Subject              @relation(fields: [subject_id], references: [id])
-  topic     Topic?               @relation(fields: [topic_id], references: [id])
+  student   Student               @relation(fields: [student_id], references: [id])
+  subject   Subject               @relation(fields: [subject_id], references: [id])
+  topic     Topic?                @relation(fields: [topic_id], references: [id])
   messages  Message[]
   summaries ConversationSummary[]
   ai_usages AIUsage[]
@@ -319,9 +324,9 @@ model Exam {
   result_summary       String?
   completed_at         DateTime?
 
-  student Student  @relation(fields: [student_id], references: [id])
-  subject Subject  @relation(fields: [subject_id], references: [id])
-  topic   Topic?   @relation(fields: [topic_id], references: [id])
+  student Student @relation(fields: [student_id], references: [id])
+  subject Subject @relation(fields: [subject_id], references: [id])
+  topic   Topic?  @relation(fields: [topic_id], references: [id])
 
   @@map("exam")
 }
@@ -401,43 +406,41 @@ model Favorite {
   @@map("favorite")
 }
 
-model Activity {
-  id             String   @id @default(uuid())
+// Evento do calendário — broadcast por audiência/turma, sem conclusão por aluno
+model Event {
+  id             String       @id @default(uuid())
   institution_id String
-  teacher_id     String
-  class_id       String
-  subject_id     String?
-  topic_id       String?
+  created_by     String // user_id de quem criou (JWT.userId)
+  audience_type  AudienceType
   title          String
   description    String?
   start_date     DateTime
   end_date       DateTime
-  activity_type  String
-  created_at     DateTime @default(now())
+  event_type     String       @default("general")
+  subject_id     String?
+  topic_id       String?
+  created_at     DateTime     @default(now())
 
-  institution       Institution       @relation(fields: [institution_id], references: [id])
-  teacher           Teacher           @relation(fields: [teacher_id], references: [id])
-  class             Class             @relation(fields: [class_id], references: [id])
-  subject           Subject?          @relation(fields: [subject_id], references: [id])
-  topic             Topic?            @relation(fields: [topic_id], references: [id])
-  studentActivities StudentActivity[]
+  institution  Institution  @relation(fields: [institution_id], references: [id])
+  creator      User         @relation(fields: [created_by], references: [id])
+  subject      Subject?     @relation(fields: [subject_id], references: [id])
+  topic        Topic?       @relation(fields: [topic_id], references: [id])
+  eventClasses EventClass[]
 
   @@index([institution_id])
-  @@map("activity")
+  @@map("event")
 }
 
-model StudentActivity {
-  id           String    @id @default(uuid())
-  activity_id  String
-  student_id   String
-  status       String    @default("pending")
-  completed_at DateTime?
+// Junção N:N evento × turma (visibilidade derivada por turma)
+model EventClass {
+  event_id String
+  class_id String
 
-  activity Activity @relation(fields: [activity_id], references: [id])
-  student  Student  @relation(fields: [student_id], references: [id])
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  class Class @relation(fields: [class_id], references: [id])
 
-  @@unique([activity_id, student_id])
-  @@map("student_activity")
+  @@id([event_id, class_id])
+  @@map("event_class")
 }
 
 model GradeTemplate {
@@ -446,7 +449,7 @@ model GradeTemplate {
   name           String
   created_at     DateTime @default(now())
 
-  institution Institution  @relation(fields: [institution_id], references: [id])
+  institution Institution   @relation(fields: [institution_id], references: [id])
   columns     GradeColumn[]
 
   @@map("grade_template")
