@@ -18,6 +18,11 @@ export class ClassController {
     return this.classService.findAllByInstitution(user.institutionId);
   }
 
+  @Get('me/:id/users')
+  findUsers(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.classService.findUsersByClass(user.institutionId, id);
+  }
+
   @Post('me')
   create(@CurrentUser() user: JwtPayload, @Body() dto: CreateClassDto) {
     return this.classService.create(user.institutionId, dto);

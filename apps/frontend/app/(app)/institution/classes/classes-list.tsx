@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { ClassItem } from '@/lib/api/class';
 import { FeedbackModal, ModalErrorIcon, ModalWarningIcon } from '@/components/ui/feedback-modal';
 
@@ -62,6 +63,7 @@ function Pagination({ page, total, onPage }: { page: number; total: number; onPa
 }
 
 export function ClassesList({ classes: initialClasses }: { classes: ClassItem[] }) {
+  const router = useRouter();
   const [classes, setClasses] = useState(initialClasses);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -174,26 +176,32 @@ export function ClassesList({ classes: initialClasses }: { classes: ClassItem[] 
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full table-fixed min-w-[720px]">
+          <table className="w-full table-fixed min-w-[880px]">
             <thead>
               <tr>
                 <th scope="col" className="pl-6 pr-4 pt-3 pb-8 text-xs font-semibold text-brand-label tracking-wide uppercase text-left">Nombre</th>
                 <th scope="col" className="px-4 pt-3 pb-8 text-xs font-semibold text-brand-label tracking-wide uppercase text-left">Curso</th>
                 <th scope="col" className="px-4 pt-3 pb-8 text-xs font-semibold text-brand-label tracking-wide uppercase text-left">Turno</th>
                 <th scope="col" className="px-4 pt-3 pb-8 text-xs font-semibold text-brand-label tracking-wide uppercase text-left">Año</th>
+                <th scope="col" className="px-4 pt-3 pb-8 text-xs font-semibold text-brand-label tracking-wide uppercase text-left">Estudiantes</th>
+                <th scope="col" className="px-4 pt-3 pb-8 text-xs font-semibold text-brand-label tracking-wide uppercase text-left">Profesores</th>
                 <th scope="col" className="pl-4 pr-6 pt-3 pb-8 text-xs font-semibold text-brand-label tracking-wide uppercase text-left">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-sm text-brand-placeholder border-t border-brand-border">
+                  <td colSpan={7} className="px-6 py-12 text-center text-sm text-brand-placeholder border-t border-brand-border">
                     {search ? 'Ninguna clase coincide con la búsqueda.' : 'No hay clases registradas.'}
                   </td>
                 </tr>
               ) : (
                 paginated.map((item) => (
-                  <tr key={item.id}>
+                  <tr
+                    key={item.id}
+                    onClick={() => router.push(`/institution/classes/${item.id}/users`)}
+                    className="cursor-pointer hover:bg-brand-border/15 transition-colors"
+                  >
                     <td className="pl-6 pr-4 py-4 border-t border-brand-border max-w-0">
                       <div>
                         <span className="block truncate text-sm font-medium text-brand-brown">{item.name}</span>
@@ -212,10 +220,17 @@ export function ClassesList({ classes: initialClasses }: { classes: ClassItem[] 
                     <td className="px-4 py-4 border-t border-brand-border">
                       <span className="text-sm text-brand-brown">{item.year}</span>
                     </td>
+                    <td className="px-4 py-4 border-t border-brand-border">
+                      <span className="text-sm text-brand-brown">{item.studentCount}</span>
+                    </td>
+                    <td className="px-4 py-4 border-t border-brand-border">
+                      <span className="text-sm text-brand-brown">{item.teacherCount}</span>
+                    </td>
                     <td className="pl-4 pr-6 py-4 border-t border-brand-border">
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/institution/classes/${item.id}/edit`}
+                          onClick={(e) => e.stopPropagation()}
                           className="w-8 h-8 flex items-center justify-center rounded-lg border border-brand-border text-brand-label hover:bg-brand-border/30 transition-colors"
                           title="Editar clase"
                         >
@@ -225,7 +240,10 @@ export function ClassesList({ classes: initialClasses }: { classes: ClassItem[] 
                           </svg>
                         </Link>
                         <button
-                          onClick={() => requestDelete(item)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            requestDelete(item);
+                          }}
                           className="w-8 h-8 flex items-center justify-center rounded-lg border border-red-300 text-red-500 hover:bg-red-50 transition-colors"
                           title="Eliminar clase"
                         >

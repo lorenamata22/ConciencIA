@@ -1,5 +1,6 @@
 import 'server-only';
 import { cookies } from 'next/headers';
+import type { InstitutionUser } from './institution';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -16,6 +17,8 @@ export interface ClassItem {
   period: string;
   license_code: string;
   course: { id: string; name: string };
+  studentCount: number;
+  teacherCount: number;
 }
 
 export async function getMyClasses(): Promise<ClassItem[]> {
@@ -38,6 +41,20 @@ export async function getMyClass(classId: string): Promise<ClassItem | null> {
     return classes.find((c) => c.id === classId) ?? null;
   } catch {
     return null;
+  }
+}
+
+export async function getClassUsers(classId: string): Promise<InstitutionUser[]> {
+  try {
+    const res = await fetch(`${API_URL}/classes/me/${classId}/users`, {
+      headers: await authHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json.data as InstitutionUser[]) ?? [];
+  } catch {
+    return [];
   }
 }
 

@@ -22,10 +22,46 @@ export class ClassService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAllByInstitution(institutionId: string) {
-    return this.prisma.class.findMany({
+    const classes = await this.prisma.class.findMany({
       where: { course: { institution_id: institutionId } },
       orderBy: { name: 'asc' },
-      select: CLASS_SELECT,
+      select: {
+        ...CLASS_SELECT,
+        // Contagem de alunos e professores vinculados à turma
+        _count: { select: { studentClasses: true, teacherClasses: true } },
+      },
+    });
+
+    return classes.map(({ _count, ...rest }) => ({
+      ...rest,
+      studentCount: _count.studentClasses,
+      teacherCount: _count.teacherClasses,
+    }));
+  }
+
+  async findUsersByClass(institutionId: string, classId: string) {
+    const existing = await this.prisma.class.findFirst({
+      where: { id: classId, course: { institution_id: institutionId } },
+    });
+    if (!existing) throw new NotFoundException('Turma não encontrada');
+
+    return this.prisma.user.findMany({
+      where: {
+        institution_id: institutionId,
+        OR: [
+          { student: { studentClasses: { some: { class_id: classId } } } },
+          { teacher: { teacherClasses: { some: { class_id: classId } } } },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        user_type: true,
+        is_minor: true,
+        created_at: true,
+      },
+      orderBy: { created_at: 'desc' },
     });
   }
 
