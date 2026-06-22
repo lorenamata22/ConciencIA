@@ -5,9 +5,53 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClassAction } from '@/app/actions/class';
 import { FormField, inputClass } from '@/components/ui/form';
-import { FeedbackModal, ModalSuccessIcon, ModalErrorIcon } from '@/components/ui/feedback-modal';
 import { PeriodEditorModal } from '@/components/ui/period-editor-modal';
 import type { CourseOption, SubjectItem } from '@/lib/api/subject';
+
+function AccessCodeCard({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <div className="rounded-xl border border-brand-border p-5">
+      <p className="text-xs font-medium text-brand-label mb-1">Código de Acceso</p>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-lg font-mono font-semibold text-brand-brown tracking-widest">{code}</span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 text-sm text-brand-label hover:text-brand-brown transition-colors"
+        >
+          {copied ? (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Copiado
+            </>
+          ) : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+              Copiar
+            </>
+          )}
+        </button>
+      </div>
+      <p className="text-xs text-brand-placeholder mt-2">
+        Comparte este código con los estudiantes para que puedan registrarse en esta clase.
+      </p>
+    </div>
+  );
+}
 
 function CourseSelect({
   courses,
@@ -167,64 +211,91 @@ export function CreateClassForm({
   initialPeriodOptions: string[];
 }) {
   const [state, action, isPending] = useActionState(createClassAction, { error: null });
-  const [showModal, setShowModal] = useState(false);
+  const [view, setView] = useState<'form' | 'success'>('form');
+  const [formKey, setFormKey] = useState(0);
   const [showPeriodEditor, setShowPeriodEditor] = useState(false);
   const [periodOptions, setPeriodOptions] = useState(initialPeriodOptions);
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const router = useRouter();
 
+  // O state muda de referência a cada submit; reagimos ao resultado da action
   useEffect(() => {
-    if (state.error || state.success) setShowModal(true);
-  }, [state.error, state.success]);
+    if (state.success) setView('success');
+    else if (state.error) setView('form');
+  }, [state]);
 
   const courseSubjects = selectedCourseId
     ? subjects.filter((s) => s.course.id === selectedCourseId)
     : [];
 
-  const isSuccess = !!state.success;
+  function handleRegisterAnother() {
+    setView('form');
+    setSelectedCourseId('');
+    setFormKey((k) => k + 1); // remonta o form para limpar os campos e selects internos
+    router.refresh();
+  }
+
+  if (view === 'success') {
+    return (
+      <div className="pt-10 px-10 md:px-30 pb-16">
+        <div className="mt-15 mb-10">
+          <Link
+            href="/institution/classes"
+            className="flex items-center gap-1.5 text-sm text-brand-label hover:text-brand-brown transition-colors w-fit"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Home
+          </Link>
+        </div>
+
+        <div className="max-w-xl">
+          <div className="mb-6">
+            <svg width="44" height="44" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.93 0C8.03 0 0 8.02 0 17.93C0 27.84 8.03 35.86 17.93 35.86C27.83 35.86 35.87 27.84 35.87 17.93C35.87 8.02 27.84 0 17.93 0ZM30.73 11.77L15.73 26.78C15.36 27.15 14.87 27.33 14.38 27.33H14.34C13.86 27.33 13.37 27.14 13 26.77L5.14 18.91C4.4 18.17 4.4 16.97 5.14 16.22C5.88 15.48 7.09 15.48 7.83 16.22L14.36 22.76L28.04 9.09C28.78 8.34 29.99 8.34 30.73 9.09C31.47 9.83 31.47 11.03 30.73 11.77Z" fill="#6EC090" />
+            </svg>
+          </div>
+
+          <h1 className="text-3xl text-brand mb-4">
+            Registro de la<br />clase completado
+          </h1>
+
+          <hr className="border-brand-border mb-5" />
+
+          <p className="text-sm text-brand-label mb-2">
+            La clase <span className="font-medium text-brand-brown">&quot;{state.className}&quot;</span> se ha registrado correctamente.
+          </p>
+          <p className="text-sm text-brand-brown mb-6">
+            Hemos generado un código único de licencia para que los<br />
+            estudiantes puedan registrarse y vincularse a esta clase.
+          </p>
+
+          {state.licenseCode && <AccessCodeCard code={state.licenseCode} />}
+
+          <div className="flex gap-3 mt-8">
+            <button
+              type="button"
+              onClick={() => router.push('/institution/classes')}
+              className="flex-1 px-4 py-3 rounded-xl text-sm font-medium border border-brand-border text-brand-brown hover:bg-brand-border/30 transition-colors"
+            >
+              Ver clases
+            </button>
+            <button
+              type="button"
+              onClick={handleRegisterAnother}
+              className="flex-1 px-4 py-3 rounded-xl text-sm font-medium border border-brand-border text-brand-brown hover:bg-brand-border/30 transition-colors"
+            >
+              Registrar otra clase
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
-      <FeedbackModal
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        icon={isSuccess ? <ModalSuccessIcon /> : <ModalErrorIcon />}
-        title={isSuccess ? '¡Clase registrada!' : 'No pudimos registrar la clase'}
-        titleColor={isSuccess ? 'text-[#6EC090]' : 'text-[#D86262]'}
-        description={
-          isSuccess
-            ? <>La clase <span className="font-medium text-brand-brown">&quot;{state.className}&quot;</span> ha sido creada correctamente.</>
-            : <>Ocurrió un problema al procesar la solicitud.<br />{state.error}</>
-        }
-        actions={
-          isSuccess ? (
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setShowModal(false); setSelectedCourseId(''); router.refresh(); }}
-                className="flex-1 px-4 py-3 rounded-xl text-sm font-medium border border-brand-border hover:bg-brand-border/30 transition-colors"
-              >
-                Registrar otra
-              </button>
-              <button
-                onClick={() => router.push('/institution/classes')}
-                className="flex-1 px-4 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white hover:bg-[#999DA3]/90 transition-colors"
-              >
-                Ver clases
-              </button>
-            </div>
-          ) : (
-            <div className="flex justify-center">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white transition-colors"
-              >
-                Intentar nuevamente
-              </button>
-            </div>
-          )
-        }
-      />
-
       <PeriodEditorModal
         open={showPeriodEditor}
         onClose={() => setShowPeriodEditor(false)}
@@ -252,7 +323,7 @@ export function CreateClassForm({
           </p>
         </div>
 
-        <form action={action} autoComplete="off">
+        <form key={formKey} action={action} autoComplete="off">
           <div className="max-w-2xl flex flex-col gap-6">
             <FormField label="ID de Clase" required>
               <input
@@ -296,6 +367,10 @@ export function CreateClassForm({
                 </label>
                 <SubjectsPreview subjects={courseSubjects} />
               </div>
+            )}
+
+            {state.error && (
+              <p className="text-sm text-red-500">{state.error}</p>
             )}
 
             <div className="flex justify-end pt-4">

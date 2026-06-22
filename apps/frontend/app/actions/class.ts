@@ -7,6 +7,7 @@ export interface ClassActionState {
   success?: boolean;
   className?: string;
   classId?: string;
+  licenseCode?: string;
 }
 
 export async function createClassAction(
@@ -27,7 +28,13 @@ export async function createClassAction(
     return { error: result.message ?? 'No se pudo registrar la clase. Inténtalo de nuevo.' };
   }
 
-  return { error: null, success: true, className: result.data.name, classId: result.data.id };
+  return {
+    error: null,
+    success: true,
+    className: result.data.name,
+    classId: result.data.id,
+    licenseCode: result.data.license_code,
+  };
 }
 
 export async function updateClassAction(
