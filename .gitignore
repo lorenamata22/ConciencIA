@@ -3,3 +3,5 @@ node_modules/
 .next/
 dist/
 .turbo/
+apps/backend/pnpm-lock.yaml
+apps/backend/.env.homolog
