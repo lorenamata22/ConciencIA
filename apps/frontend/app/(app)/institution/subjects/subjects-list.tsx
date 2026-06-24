@@ -73,8 +73,7 @@ export function SubjectsList({ subjects: initialSubjects }: { subjects: SubjectI
     return subjects.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
-        s.course.name.toLowerCase().includes(q) ||
-        (s.description ?? '').toLowerCase().includes(q),
+        s.course.name.toLowerCase().includes(q),
     );
   }, [subjects, search]);
 
