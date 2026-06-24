@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { DocumentType } from '@prisma/client';
@@ -37,6 +37,22 @@ export class SubjectService {
       where: { id: dto.courseId, institution_id: institutionId },
     });
     if (!course) throw new NotFoundException('Curso não encontrado ou não pertence à instituição');
+
+    const institution = await this.prisma.institution.findUnique({
+      where: { id: institutionId },
+      select: { subject_limit: true },
+    });
+
+    if (institution?.subject_limit != null) {
+      const currentCount = await this.prisma.subject.count({
+        where: { course: { institution_id: institutionId } },
+      });
+      if (currentCount >= institution.subject_limit) {
+        throw new ForbiddenException(
+          `Límite de asignaturas alcanzado (máximo ${institution.subject_limit})`,
+        );
+      }
+    }
 
     return this.prisma.subject.create({
       data: {

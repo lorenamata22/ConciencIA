@@ -41,4 +41,9 @@ export class CreateInstitutionDto {
   @IsInt()
   @IsPositive()
   aiTokenLimit?: number;
+
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  subjectLimit?: number;
 }

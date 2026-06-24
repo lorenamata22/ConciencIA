@@ -279,11 +279,15 @@ export default async function InstitutionDetailPage({
             <span className="text-sm font-medium text-brand-label">Asignaturas registradas</span>
           </div>
           <div className="flex items-baseline gap-1 mb-2">
-            <span className="text-5xl font-bold text-brand-brown">{subjects?.withContent ?? 0}</span>
-            <span className="text-3xl font-semibold text-brand-label">/{subjects?.total ?? 0}</span>
+            <span className="text-5xl font-bold text-brand-brown">{subjects?.total ?? 0}</span>
+            <span className="text-3xl font-semibold text-brand-label">
+              /{institution.subject_limit != null ? institution.subject_limit : '∞'}
+            </span>
           </div>
           <p className="text-xs text-brand-label">
-            Última actualización: {formatDate(institution.created_at)}
+            {institution.subject_limit != null
+              ? `${Math.max(0, institution.subject_limit - (subjects?.total ?? 0))} disponibles para crear`
+              : 'Sin límite de asignaturas'}
           </p>
         </div>
       </div>

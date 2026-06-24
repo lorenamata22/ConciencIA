@@ -22,6 +22,8 @@ export async function createInstitutionAction(
   const postalCode = (formData.get('postalCode') as string)?.trim() || undefined;
   const country = (formData.get('country') as string)?.trim() || undefined;
   const city = (formData.get('city') as string)?.trim() || undefined;
+  const subjectLimitRaw = (formData.get('subjectLimit') as string)?.trim();
+  const subjectLimit = subjectLimitRaw ? parseInt(subjectLimitRaw, 10) : undefined;
 
   if (!name || !email || !password || !representativeName) {
     return { error: 'Completa los campos obligatorios.' };
@@ -41,6 +43,7 @@ export async function createInstitutionAction(
     postalCode,
     country,
     city,
+    subjectLimit,
   });
 
   if (result.statusCode !== 201 || !result.data) {
@@ -74,6 +77,8 @@ export async function updateInstitutionAction(
   const postalCode = (formData.get('postalCode') as string)?.trim() || undefined;
   const country = (formData.get('country') as string)?.trim() || undefined;
   const city = (formData.get('city') as string)?.trim() || undefined;
+  const subjectLimitRaw = (formData.get('subjectLimit') as string)?.trim();
+  const subjectLimit = subjectLimitRaw ? parseInt(subjectLimitRaw, 10) : undefined;
 
   if (!name || !representativeName) {
     return { error: 'Completa los campos obligatorios.' };
@@ -87,6 +92,7 @@ export async function updateInstitutionAction(
     postalCode,
     country,
     city,
+    subjectLimit,
   });
 
   if (result.statusCode !== 200 || !result.data) {

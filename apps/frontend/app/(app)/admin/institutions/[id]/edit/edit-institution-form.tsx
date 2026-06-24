@@ -255,6 +255,17 @@ export function EditInstitutionForm({ institution }: { institution: InstitutionD
                 </FormField>
               </div>
 
+              <FormField label="Límite de asignaturas">
+                <input
+                  name="subjectLimit"
+                  type="number"
+                  min="1"
+                  placeholder="Sin límite"
+                  defaultValue={institution.subject_limit ?? ''}
+                  className={inputClass}
+                />
+              </FormField>
+
               {state.error && !showModal && (
                 <p className="text-sm text-red-500">{state.error}</p>
               )}

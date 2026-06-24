@@ -253,6 +253,16 @@ export function NewInstitutionForm() {
                 </FormField>
               </div>
 
+              <FormField label="Límite de asignaturas">
+                <input
+                  name="subjectLimit"
+                  type="number"
+                  min="1"
+                  placeholder="Sin límite"
+                  className={inputClass}
+                />
+              </FormField>
+
               <div className="flex items-center justify-end gap-3 pt-2">
                 <Link
                   href="/admin"

@@ -43,6 +43,7 @@ export interface CreateInstitutionPayload {
   postalCode?: string;
   country?: string;
   city?: string;
+  subjectLimit?: number;
 }
 
 export interface CreateInstitutionResponse {
@@ -80,6 +81,7 @@ export interface InstitutionDetail extends Institution {
   country: string | null;
   logo_url: string | null;
   ai_token_limit: number | null;
+  subject_limit: number | null;
 }
 
 export interface InstitutionDetailStats {
@@ -140,6 +142,7 @@ export interface UpdateInstitutionPayload {
   city?: string;
   status?: string;
   aiTokenLimit?: number;
+  subjectLimit?: number;
 }
 
 export interface UpdateInstitutionResponse {

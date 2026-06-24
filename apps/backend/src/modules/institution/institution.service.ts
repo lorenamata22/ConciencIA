@@ -27,6 +27,7 @@ export class InstitutionService {
           country: dto.country,
           city: dto.city,
           ai_token_limit: dto.aiTokenLimit,
+          subject_limit: dto.subjectLimit,
         },
       });
 
@@ -73,6 +74,7 @@ export class InstitutionService {
         ...(dto.city !== undefined && { city: dto.city }),
         ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.aiTokenLimit !== undefined && { ai_token_limit: dto.aiTokenLimit }),
+        ...(dto.subjectLimit !== undefined && { subject_limit: dto.subjectLimit }),
       },
     });
   }
