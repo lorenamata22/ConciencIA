@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ─── Enums ───────────────────────────────────────────────────��──────────────
@@ -67,6 +68,7 @@ model Institution {
   logo_url            String?
   status              String   @default("active")
   ai_token_limit      Int?
+  subject_limit       Int?
   created_at          DateTime @default(now())
 
   users          User[]
