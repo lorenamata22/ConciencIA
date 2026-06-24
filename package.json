@@ -4,7 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "bash dev.sh",
+    "dev:backend": "cd apps/backend && pnpm start:dev",
+    "dev:frontend": "cd apps/frontend && pnpm dev",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "migrate": "cd apps/backend && pnpm prisma migrate deploy",
+    "migrate:create": "cd apps/backend && pnpm prisma migrate dev"
   },
   "keywords": [],
   "author": "",
