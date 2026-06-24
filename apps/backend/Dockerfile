@@ -14,4 +14,4 @@ RUN pnpm build
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "pnpm prisma migrate deploy && node dist/main"]
+CMD ["sh", "-c", "pnpm prisma migrate deploy && node dist/src/main"]
