@@ -84,16 +84,20 @@ model Institution {
 }
 
 model User {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   institution_id String
   name           String
-  email          String   @unique
-  password       String
+  email          String    @unique
+  // Senha nula = conta pendente de ativação (pré-cadastro via access_code)
+  password       String?
+  // Token de ativação de uso único — limpo ao ativar a conta
+  access_code    String?   @unique
+  birth_date     DateTime?
   phone          String?
   user_type      UserType
   ai_token_limit Int?
-  is_minor       Boolean  @default(false)
-  created_at     DateTime @default(now())
+  is_minor       Boolean   @default(false)
+  created_at     DateTime  @default(now())
 
   institution           Institution          @relation(fields: [institution_id], references: [id])
   student               Student?

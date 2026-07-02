@@ -50,4 +50,17 @@ export class TeacherController {
   remove(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.teacherService.remove(id, user.institutionId);
   }
+
+  @Post('me/:id/send-access-email')
+  sendAccessEmail(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.teacherService.sendAccessEmail(id, user.institutionId);
+  }
+
+  @Post('me/:id/regenerate-access-code')
+  regenerateAccessCode(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.teacherService.regenerateAccessCode(id, user.institutionId);
+  }
 }

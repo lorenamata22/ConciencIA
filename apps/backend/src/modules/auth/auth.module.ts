@@ -6,6 +6,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailModule } from '../email/email.module';
+import { StudentModule } from '../student/student.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { EmailModule } from '../email/email.module';
     // JwtModule sem secret global — cada sign/verify passa o secret explicitamente
     JwtModule.register({}),
     EmailModule,
+    StudentModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, PrismaService],

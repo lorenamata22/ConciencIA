@@ -160,6 +160,10 @@ export class InstitutionService {
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
     await this.prisma.$transaction(async (tx) => {
+      // AIUsage referencia user_id e conversation_id — deletar antes das conversas e do user
+      await tx.passwordResetToken.deleteMany({ where: { user_id: userId } });
+      await tx.aIUsage.deleteMany({ where: { user_id: userId } });
+
       if (user.teacher) {
         await tx.teacherSubject.deleteMany({ where: { teacher_id: user.teacher.id } });
         await tx.teacherClass.deleteMany({ where: { teacher_id: user.teacher.id } });
@@ -167,12 +171,25 @@ export class InstitutionService {
       }
 
       if (user.student) {
+        // Conversas e seus filhos (mensagens, resumos) antes do student
+        const conversations = await tx.conversation.findMany({
+          where: { student_id: user.student.id },
+          select: { id: true },
+        });
+        const conversationIds = conversations.map((c) => c.id);
+
         await tx.studentGrade.deleteMany({ where: { student_id: user.student.id } });
         await tx.favorite.deleteMany({ where: { student_id: user.student.id } });
         await tx.note.deleteMany({ where: { student_id: user.student.id } });
         await tx.topicProgress.deleteMany({ where: { student_id: user.student.id } });
         await tx.studentMetrics.deleteMany({ where: { student_id: user.student.id } });
         await tx.exam.deleteMany({ where: { student_id: user.student.id } });
+        await tx.alert.deleteMany({ where: { student_id: user.student.id } });
+        await tx.message.deleteMany({ where: { conversation_id: { in: conversationIds } } });
+        await tx.conversationSummary.deleteMany({
+          where: { conversation_id: { in: conversationIds } },
+        });
+        await tx.conversation.deleteMany({ where: { student_id: user.student.id } });
         await tx.studentClass.deleteMany({ where: { student_id: user.student.id } });
         await tx.student.delete({ where: { id: user.student.id } });
       }

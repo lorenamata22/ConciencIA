@@ -60,8 +60,12 @@ export function CreateStudentForm({ classes }: Props) {
   const [view, setView] = useState<View>('form');
   const [accessCode, setAccessCode] = useState('');
   const [createdEmail, setCreatedEmail] = useState('');
+  const [createdUserId, setCreatedUserId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [isMinor, setIsMinor] = useState(false);
 
@@ -111,6 +115,7 @@ export function CreateStudentForm({ classes }: Props) {
 
       setAccessCode(json.data.accessCode);
       setCreatedEmail(email);
+      setCreatedUserId(json.data.userId);
       setView('success');
     } catch {
       setError('No se pudo registrar el estudiante. Inténtalo de nuevo.');
@@ -119,11 +124,41 @@ export function CreateStudentForm({ classes }: Props) {
     }
   }
 
+  async function handleSendEmail() {
+    setSendingEmail(true);
+    setEmailError(null);
+
+    try {
+      const res = await fetch(`/api/institution/students/${createdUserId}/send-access-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessCode }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        setEmailError(json.message ?? 'No se pudo enviar el correo. Inténtalo de nuevo.');
+        return;
+      }
+
+      setEmailSent(true);
+    } catch {
+      setEmailError('No se pudo enviar el correo. Inténtalo de nuevo.');
+    } finally {
+      setSendingEmail(false);
+    }
+  }
+
   function handleRegisterAnother() {
     setView('form');
     setAccessCode('');
     setCreatedEmail('');
+    setCreatedUserId('');
     setError(null);
+    setSendingEmail(false);
+    setEmailSent(false);
+    setEmailError(null);
     setSelectedClassId('');
     setIsMinor(false);
     if (nameRef.current) nameRef.current.value = '';
@@ -169,17 +204,32 @@ export function CreateStudentForm({ classes }: Props) {
 
           <AccessCodeCard code={accessCode} email={createdEmail} />
 
+          {emailError && (
+            <p className="text-sm text-red-500 mt-3">{emailError}</p>
+          )}
+
           <div className="flex gap-3 mt-8">
             <button
               type="button"
-              disabled
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border border-brand-border text-brand-label opacity-50 cursor-not-allowed"
-              title="Funcionalidad de envío por correo próximamente disponible"
+              disabled={sendingEmail || emailSent}
+              onClick={handleSendEmail}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border border-brand-border text-brand-label hover:bg-brand-border/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
-              Enviar por correo
+              {emailSent ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Correo enviado
+                </>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                  {sendingEmail ? 'Enviando...' : 'Enviar por correo'}
+                </>
+              )}
             </button>
             <button
               type="button"

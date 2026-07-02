@@ -1,4 +1,10 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, IsBoolean } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsBoolean,
+} from 'class-validator';
 
 export class CreateStudentInstitutionDto {
   @IsNotEmpty()

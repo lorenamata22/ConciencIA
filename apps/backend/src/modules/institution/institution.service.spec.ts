@@ -100,6 +100,7 @@ describe('InstitutionService', () => {
   describe('update', () => {
     it('should update institution', async () => {
       const updated = { ...mockInstitution, name: 'Escola Beta' };
+      prismaMock.institution.findUnique.mockResolvedValue(mockInstitution as any);
       prismaMock.institution.update.mockResolvedValue(updated as any);
 
       const result = await service.update('inst-id-1', { name: 'Escola Beta' });
@@ -128,6 +129,69 @@ describe('InstitutionService', () => {
 
       expect(result).toEqual({ total: 5, active: 3, pending: 1, newThisMonth: 2 });
       expect(prismaMock.institution.count).toHaveBeenCalledTimes(4);
+    });
+  });
+
+  describe('deleteUser', () => {
+    beforeEach(() => {
+      prismaMock.$transaction.mockImplementation(async (fn: any) => fn(prismaMock));
+      prismaMock.conversation.findMany.mockResolvedValue([] as any);
+    });
+
+    it('should delete password reset tokens and AI usage before deleting user', async () => {
+      prismaMock.user.findFirst.mockResolvedValue({
+        ...mockUser,
+        teacher: null,
+        student: null,
+      } as any);
+
+      await service.deleteUser('inst-id-1', 'user-id-1');
+
+      expect(prismaMock.passwordResetToken.deleteMany).toHaveBeenCalledWith({
+        where: { user_id: 'user-id-1' },
+      });
+      expect(prismaMock.aIUsage.deleteMany).toHaveBeenCalledWith({
+        where: { user_id: 'user-id-1' },
+      });
+      expect(prismaMock.user.delete).toHaveBeenCalledWith({ where: { id: 'user-id-1' } });
+    });
+
+    it('should delete conversations with messages and summaries before deleting student', async () => {
+      prismaMock.user.findFirst.mockResolvedValue({
+        ...mockUser,
+        teacher: null,
+        student: { id: 'student-id-1' },
+      } as any);
+      prismaMock.conversation.findMany.mockResolvedValue([
+        { id: 'conv-1' },
+        { id: 'conv-2' },
+      ] as any);
+
+      await service.deleteUser('inst-id-1', 'user-id-1');
+
+      expect(prismaMock.message.deleteMany).toHaveBeenCalledWith({
+        where: { conversation_id: { in: ['conv-1', 'conv-2'] } },
+      });
+      expect(prismaMock.conversationSummary.deleteMany).toHaveBeenCalledWith({
+        where: { conversation_id: { in: ['conv-1', 'conv-2'] } },
+      });
+      expect(prismaMock.conversation.deleteMany).toHaveBeenCalledWith({
+        where: { student_id: 'student-id-1' },
+      });
+      expect(prismaMock.alert.deleteMany).toHaveBeenCalledWith({
+        where: { student_id: 'student-id-1' },
+      });
+      expect(prismaMock.student.delete).toHaveBeenCalledWith({
+        where: { id: 'student-id-1' },
+      });
+    });
+
+    it('should throw NotFoundException when user does not belong to institution', async () => {
+      prismaMock.user.findFirst.mockResolvedValue(null);
+
+      await expect(service.deleteUser('inst-id-1', 'user-outro')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

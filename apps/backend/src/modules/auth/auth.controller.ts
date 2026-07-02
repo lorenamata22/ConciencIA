@@ -4,6 +4,9 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ValidateCodeDto } from './dto/validate-code.dto';
+import { RegisterDto } from './dto/register.dto';
+import { ActivateDto } from './dto/activate.dto';
 import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('auth')
@@ -36,5 +39,25 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.newPassword);
+  }
+
+  @Public()
+  @Post('validate-code')
+  @HttpCode(HttpStatus.OK)
+  validateCode(@Body() dto: ValidateCodeDto) {
+    return this.authService.validateCode(dto.code);
+  }
+
+  @Public()
+  @Post('register')
+  register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
+  }
+
+  @Public()
+  @Post('activate')
+  @HttpCode(HttpStatus.OK)
+  activate(@Body() dto: ActivateDto) {
+    return this.authService.activate(dto);
   }
 }

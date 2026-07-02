@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+} from '@nestjs/common';
 import { StudentService } from './student.service';
 import { CreateStudentInstitutionDto } from './dto/create-student-institution.dto';
 import { UpdateStudentInstitutionDto } from './dto/update-student-institution.dto';
@@ -19,7 +27,10 @@ export class StudentController {
   }
 
   @Post('me')
-  create(@CurrentUser() user: JwtPayload, @Body() dto: CreateStudentInstitutionDto) {
+  create(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: CreateStudentInstitutionDto,
+  ) {
     return this.studentService.createByInstitution(dto, user.institutionId);
   }
 
@@ -35,5 +46,21 @@ export class StudentController {
     @Body() dto: UpdateStudentInstitutionDto,
   ) {
     return this.studentService.updateByUserId(userId, dto, user.institutionId);
+  }
+
+  @Post('me/:userId/send-access-email')
+  sendAccessEmail(
+    @CurrentUser() user: JwtPayload,
+    @Param('userId') userId: string,
+  ) {
+    return this.studentService.sendAccessEmail(userId, user.institutionId);
+  }
+
+  @Post('me/:userId/regenerate-access-code')
+  regenerateAccessCode(
+    @CurrentUser() user: JwtPayload,
+    @Param('userId') userId: string,
+  ) {
+    return this.studentService.regenerateAccessCode(userId, user.institutionId);
   }
 }

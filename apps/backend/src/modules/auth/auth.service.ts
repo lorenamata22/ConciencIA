@@ -1,12 +1,27 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { ValidateCodeResult } from './dto/validate-code.dto';
+import { RegisterDto } from './dto/register.dto';
+import { ActivateDto } from './dto/activate.dto';
 import { JwtPayload } from '../../common/decorators/current-user.decorator';
 import { EmailService } from '../email/email.service';
+import { StudentService } from '../student/student.service';
+import { isMinor } from '../../common/utils/age';
+
+interface TokenizableUser {
+  id: string;
+  institution_id: string;
+  user_type: string;
+}
 
 @Injectable()
 export class AuthService {
@@ -15,9 +30,35 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
+    private readonly studentService: StudentService,
   ) {}
 
-  async login(dto: LoginDto): Promise<{ accessToken: string; refreshToken: string }> {
+  private issueTokens(user: TokenizableUser): {
+    accessToken: string;
+    refreshToken: string;
+  } {
+    const payload: JwtPayload = {
+      userId: user.id,
+      institutionId: user.institution_id,
+      userType: user.user_type,
+    };
+
+    const accessToken = this.jwtService.sign(payload as object, {
+      secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
+      expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN'),
+    });
+
+    const refreshToken = this.jwtService.sign(payload as object, {
+      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN'),
+    });
+
+    return { accessToken, refreshToken };
+  }
+
+  async login(
+    dto: LoginDto,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -28,6 +69,13 @@ export class AuthService {
       );
     }
 
+    // Senha nula = pré-cadastro ainda não ativado — nunca comparar bcrypt contra null
+    if (!user.password) {
+      throw new UnauthorizedException(
+        'Cuenta pendiente de activación. Utiliza tu código de acceso para completar el registro.',
+      );
+    }
+
     const passwordMatch = await bcrypt.compare(dto.password, user.password);
     if (!passwordMatch) {
       throw new UnauthorizedException(
@@ -35,23 +83,102 @@ export class AuthService {
       );
     }
 
-    const payload: JwtPayload = {
-      userId: user.id,
-      institutionId: user.institution_id,
-      userType: user.user_type,
-    };
+    return this.issueTokens(user);
+  }
 
-    const accessToken = this.jwtService.sign(payload as object, {
-      secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-      expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN') as any,
+  // Valida license_code (turma) ou access_code (pré-cadastro) num único endpoint
+  async validateCode(code: string): Promise<ValidateCodeResult> {
+    const classRecord = await this.prisma.class.findFirst({
+      where: { license_code: code },
+      include: {
+        course: {
+          select: { name: true, institution: { select: { name: true } } },
+        },
+      },
     });
 
-    const refreshToken = this.jwtService.sign(payload as object, {
-      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN') as any,
+    if (classRecord) {
+      return {
+        codeType: 'license',
+        institutionName: classRecord.course.institution.name,
+        courseName: classRecord.course.name,
+        className: classRecord.name,
+      };
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { access_code: code },
+      include: {
+        institution: { select: { name: true } },
+        student: {
+          include: {
+            studentClasses: {
+              include: {
+                class: { include: { course: { select: { name: true } } } },
+              },
+              take: 1,
+            },
+          },
+        },
+      },
     });
 
-    return { accessToken, refreshToken };
+    if (user) {
+      const studentClass = user.student?.studentClasses[0]?.class ?? null;
+      return {
+        codeType: 'access',
+        institutionName: user.institution.name,
+        courseName: studentClass?.course.name ?? null,
+        className: studentClass?.name ?? null,
+        prefill: { name: user.name, email: user.email },
+      };
+    }
+
+    throw new BadRequestException('Código inválido ou expirado.');
+  }
+
+  // Auto-cadastro externo via license_code — acesso liberado imediatamente
+  async register(
+    dto: RegisterDto,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const user = await this.studentService.registerWithLicenseCode({
+      name: dto.name,
+      email: dto.email,
+      password: dto.password,
+      license_code: dto.licenseCode,
+      birth_date: new Date(dto.birthDate),
+    });
+
+    return this.issueTokens(user);
+  }
+
+  // Ativação de pré-cadastro via access_code — define senha e consome o código
+  async activate(
+    dto: ActivateDto,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { access_code: dto.accessCode },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Código inválido ou já utilizado.');
+    }
+
+    const birthDate = new Date(dto.birthDate);
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    const activated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        birth_date: birthDate,
+        is_minor: isMinor(birthDate),
+        access_code: null,
+        ...(dto.name !== undefined && { name: dto.name }),
+      },
+    });
+
+    return this.issueTokens(activated);
   }
 
   async refreshToken(token: string): Promise<{ accessToken: string }> {
@@ -68,7 +195,7 @@ export class AuthService {
 
       const accessToken = this.jwtService.sign(newPayload as object, {
         secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-        expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN') as any,
+        expiresIn: this.configService.get('JWT_ACCESS_EXPIRES_IN'),
       });
 
       return { accessToken };
