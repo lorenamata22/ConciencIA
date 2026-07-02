@@ -129,10 +129,9 @@ export function CreateStudentForm({ classes }: Props) {
     setEmailError(null);
 
     try {
+      // O backend lê o código do banco — não enviamos o código no body
       const res = await fetch(`/api/institution/students/${createdUserId}/send-access-email`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessCode }),
       });
 
       const json = await res.json();

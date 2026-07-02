@@ -3,7 +3,7 @@
 import { useState, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { InstitutionUser } from '@/lib/api/institution';
-import { FeedbackModal, ModalErrorIcon, ModalWarningIcon } from '@/components/ui/feedback-modal';
+import { FeedbackModal, ModalErrorIcon, ModalSuccessIcon, ModalWarningIcon } from '@/components/ui/feedback-modal';
 
 const PAGE_SIZE = 8;
 
@@ -18,7 +18,17 @@ type ModalState =
   | { phase: 'select-type' }
   | { phase: 'confirm'; userId: string; userName: string }
   | { phase: 'deleting'; userId: string; userName: string }
-  | { phase: 'error' };
+  | { phase: 'error' }
+  | { phase: 'email-sent'; userName: string }
+  | { phase: 'confirm-regenerate'; userId: string; userName: string; userType: string }
+  | { phase: 'regenerated'; code: string; userName: string }
+  | { phase: 'action-error'; message: string };
+
+// Endpoints de acesso são separados por tipo de usuário
+function accessBasePath(userType: string, userId: string) {
+  const resource = userType === 'teacher' ? 'teachers' : 'students';
+  return `/api/institution/${resource}/${userId}`;
+}
 
 function UserTypeBadge({ type }: { type: string }) {
   const config = USER_TYPE_CONFIG[type] ?? { label: type, dot: 'bg-gray-400', pill: 'bg-gray-100 text-gray-500' };
@@ -26,6 +36,45 @@ function UserTypeBadge({ type }: { type: string }) {
     <span className={`inline-flex justify-center items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium w-36 ${config.pill}`}>
       <span className={`w-2 h-2 rounded-full ${config.dot}`} />
       {config.label}
+    </span>
+  );
+}
+
+function CopyCodeBox({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <span className="inline-flex items-center gap-3 rounded-xl border border-brand-border px-4 py-2.5">
+      <span className="text-lg font-mono font-semibold text-brand-brown tracking-widest">{code}</span>
+      <button
+        type="button"
+        onClick={handleCopy}
+        className="flex items-center gap-1.5 text-sm text-brand-label hover:text-brand-brown transition-colors"
+      >
+        {copied ? (
+          <>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Copiado
+          </>
+        ) : (
+          <>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+            Copiar
+          </>
+        )}
+      </button>
     </span>
   );
 }
@@ -157,6 +206,7 @@ export function InstitutionUsersList({
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState<ModalState>({ phase: 'idle' });
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
@@ -180,6 +230,46 @@ export function InstitutionUsersList({
   function handleEdit(user: InstitutionUser) {
     if (user.user_type === 'teacher' || user.user_type === 'student') {
       router.push(`/institution/users/${user.id}/edit`);
+    }
+  }
+
+  async function handleSendAccessEmail(user: InstitutionUser) {
+    setActionBusy(user.id);
+    try {
+      const res = await fetch(`${accessBasePath(user.user_type, user.id)}/send-access-email`, {
+        method: 'POST',
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setModal({ phase: 'action-error', message: json.message ?? 'No se pudo enviar el correo.' });
+        return;
+      }
+      setModal({ phase: 'email-sent', userName: user.name });
+    } catch {
+      setModal({ phase: 'action-error', message: 'No se pudo enviar el correo. Inténtalo de nuevo.' });
+    } finally {
+      setActionBusy(null);
+    }
+  }
+
+  async function confirmRegenerate() {
+    if (modal.phase !== 'confirm-regenerate') return;
+    const { userId, userName, userType } = modal;
+    setActionBusy(userId);
+    try {
+      const res = await fetch(`${accessBasePath(userType, userId)}/regenerate-access-code`, {
+        method: 'POST',
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setModal({ phase: 'action-error', message: json.message ?? 'No se pudo regenerar el código.' });
+        return;
+      }
+      setModal({ phase: 'regenerated', code: json.data.accessCode, userName });
+    } catch {
+      setModal({ phase: 'action-error', message: 'No se pudo regenerar el código. Inténtalo de nuevo.' });
+    } finally {
+      setActionBusy(null);
     }
   }
 
@@ -252,6 +342,103 @@ export function InstitutionUsersList({
         }
       />
 
+      {/* Confirmação de regeneração de código */}
+      <FeedbackModal
+        open={modal.phase === 'confirm-regenerate'}
+        onClose={() => setModal({ phase: 'idle' })}
+        closeDisabled={actionBusy !== null}
+        icon={<ModalWarningIcon />}
+        title="¿Regenerar código de acceso?"
+        description={
+          <>Se generará un nuevo código para <span className="font-medium text-brand-brown">{modal.phase === 'confirm-regenerate' ? modal.userName : ''}</span>.<br />El código anterior dejará de funcionar.</>
+        }
+        actions={
+          <div className="flex gap-3">
+            <button
+              onClick={() => setModal({ phase: 'idle' })}
+              disabled={actionBusy !== null}
+              className="flex-1 px-4 py-3 rounded-xl text-sm font-medium border border-brand-border hover:bg-brand-border/30 transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmRegenerate}
+              disabled={actionBusy !== null}
+              className="flex-1 px-4 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white hover:bg-[#999DA3]/80 transition-colors disabled:opacity-60"
+            >
+              {actionBusy !== null ? 'Regenerando...' : 'Sí, regenerar'}
+            </button>
+          </div>
+        }
+      />
+
+      {/* Novo código gerado */}
+      <FeedbackModal
+        open={modal.phase === 'regenerated'}
+        onClose={() => setModal({ phase: 'idle' })}
+        icon={<ModalSuccessIcon />}
+        title="Código regenerado"
+        description={
+          modal.phase === 'regenerated' ? (
+            <>
+              Nuevo código de acceso para <span className="font-medium text-brand-brown">{modal.userName}</span>:
+              <span className="block mt-4"><CopyCodeBox code={modal.code} /></span>
+            </>
+          ) : null
+        }
+        actions={
+          <div className="flex justify-center">
+            <button
+              onClick={() => setModal({ phase: 'idle' })}
+              className="px-4 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
+        }
+      />
+
+      {/* Email reenviado */}
+      <FeedbackModal
+        open={modal.phase === 'email-sent'}
+        onClose={() => setModal({ phase: 'idle' })}
+        icon={<ModalSuccessIcon />}
+        title="Correo enviado"
+        description={
+          <>El código de acceso fue enviado a <span className="font-medium text-brand-brown">{modal.phase === 'email-sent' ? modal.userName : ''}</span>.</>
+        }
+        actions={
+          <div className="flex justify-center">
+            <button
+              onClick={() => setModal({ phase: 'idle' })}
+              className="px-4 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
+        }
+      />
+
+      {/* Erro em ações de código de acceso */}
+      <FeedbackModal
+        open={modal.phase === 'action-error'}
+        onClose={() => setModal({ phase: 'idle' })}
+        icon={<ModalErrorIcon />}
+        title="No se pudo completar la acción"
+        titleColor="text-[#D86262]"
+        description={modal.phase === 'action-error' ? modal.message : ''}
+        actions={
+          <div className="flex justify-center">
+            <button
+              onClick={() => setModal({ phase: 'idle' })}
+              className="px-4 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
+        }
+      />
+
       <div className="rounded-2xl px-10 card-shadow overflow-hidden">
 
         {/* Toolbar */}
@@ -313,6 +500,11 @@ export function InstitutionUsersList({
                         {user.is_minor && (
                           <span className="shrink-0 text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-md font-medium">Menor</span>
                         )}
+                        {user.pendingActivation && (
+                          <span className="shrink-0 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md font-medium" title="El usuario aún no ha activado su cuenta">
+                            Pendiente de activación
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-4 border-t border-brand-border max-w-0">
@@ -323,6 +515,31 @@ export function InstitutionUsersList({
                     </td>
                     <td className="pl-4 pr-6 py-4 border-t border-brand-border">
                       <div className="flex items-center gap-2">
+                        {user.pendingActivation && (user.user_type === 'teacher' || user.user_type === 'student') && (
+                          <>
+                            <button
+                              onClick={() => handleSendAccessEmail(user)}
+                              disabled={actionBusy !== null}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-brand-border text-brand-label hover:bg-brand-border/30 transition-colors disabled:opacity-40"
+                              title="Reenviar correo con código de acceso"
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setModal({ phase: 'confirm-regenerate', userId: user.id, userName: user.name, userType: user.user_type })}
+                              disabled={actionBusy !== null}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-brand-border text-brand-label hover:bg-brand-border/30 transition-colors disabled:opacity-40"
+                              title="Regenerar código de acceso"
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="23 4 23 10 17 10" />
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                              </svg>
+                            </button>
+                          </>
+                        )}
                         {(user.user_type === 'teacher' || user.user_type === 'student') && (
                           <button
                             onClick={() => handleEdit(user)}

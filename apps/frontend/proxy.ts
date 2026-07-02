@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Rotas que não requerem autenticação
-const PUBLIC_ROUTES = new Set(['/', '/login', '/forgot-password']);
+const PUBLIC_ROUTES = new Set(['/', '/login', '/forgot-password', '/complete-registration']);
 
 // Prefixos públicos (subrotas dinâmicas)
 const PUBLIC_PREFIXES = ['/reset-password/'];

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { LoginForm } from './login-form';
 import Image from 'next/image'
 import Logo from '@/assets/img/Logo.svg'
@@ -25,6 +26,14 @@ export default function LoginPage() {
       {/* Formulário */}
       <div className="w-full max-w-sm">
         <LoginForm />
+
+        {/* CTA de auto-cadastro via código */}
+        <p className="text-center text-sm text-brand-label mt-6">
+          ¿Aún no tienes una cuenta?{' '}
+          <Link href="/complete-registration" className="font-medium text-brand-brown hover:underline">
+            Regístrate
+          </Link>
+        </p>
       </div>
     </main>
   );

@@ -117,6 +117,32 @@ describe('InstitutionService', () => {
     });
   });
 
+  describe('getUsers', () => {
+    it('should map access_code to pendingActivation without exposing the code', async () => {
+      prismaMock.institution.findUnique.mockResolvedValue(
+        mockInstitution as any,
+      );
+      prismaMock.user.findMany.mockResolvedValue([
+        { ...mockUser, access_code: 'ABCD2345' },
+        { ...mockUser, id: 'user-id-2', access_code: null },
+      ] as any);
+
+      const result = await service.getUsers('inst-id-1');
+
+      expect(result[0].pendingActivation).toBe(true);
+      expect(result[1].pendingActivation).toBe(false);
+      expect(result[0]).not.toHaveProperty('access_code');
+    });
+
+    it('should throw NotFoundException when institution does not exist', async () => {
+      prismaMock.institution.findUnique.mockResolvedValue(null);
+
+      await expect(service.getUsers('missing')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
   describe('getStats', () => {
     it('should return institution counts grouped by status', async () => {
       prismaMock.institution.count

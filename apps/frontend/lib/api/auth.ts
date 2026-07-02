@@ -51,6 +51,66 @@ export async function apiForgotPassword(email: string): Promise<BaseResponse> {
   return res.json();
 }
 
+// Resultado da validação de código — diz qual fluxo seguir (register vs activate)
+export interface ValidateCodeData {
+  codeType: 'license' | 'access';
+  institutionName: string;
+  courseName: string | null;
+  className: string | null;
+  prefill?: { name: string; email: string };
+}
+
+export interface ValidateCodeResponse {
+  data: ValidateCodeData | null;
+  message: string;
+  statusCode: number;
+}
+
+export async function apiValidateCode(code: string): Promise<ValidateCodeResponse> {
+  const res = await fetch(`${API_URL}/auth/validate-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+
+  return res.json();
+}
+
+export interface RegisterPayload {
+  licenseCode: string;
+  name: string;
+  email: string;
+  birthDate: string;
+  password: string;
+}
+
+export async function apiRegister(payload: RegisterPayload): Promise<LoginResponse> {
+  const res = await fetch(`${API_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  return res.json();
+}
+
+export interface ActivatePayload {
+  accessCode: string;
+  name?: string;
+  birthDate: string;
+  password: string;
+}
+
+export async function apiActivate(payload: ActivatePayload): Promise<LoginResponse> {
+  const res = await fetch(`${API_URL}/auth/activate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  return res.json();
+}
+
 export async function apiResetPassword(token: string, newPassword: string): Promise<BaseResponse> {
   const res = await fetch(`${API_URL}/auth/reset-password`, {
     method: 'POST',

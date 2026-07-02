@@ -158,6 +158,7 @@ export interface InstitutionUser {
   user_type: string;
   is_minor: boolean;
   created_at: string;
+  pendingActivation: boolean;
 }
 
 export async function getInstitutionUsers(id: string): Promise<InstitutionUser[]> {

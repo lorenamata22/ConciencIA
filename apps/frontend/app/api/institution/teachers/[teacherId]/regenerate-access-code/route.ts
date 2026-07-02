@@ -11,8 +11,7 @@ export async function POST(
   const cookieStore = await cookies();
   const token = cookieStore.get('accessToken')?.value ?? '';
 
-  // O código de acesso é lido do banco pelo backend — nada é enviado no body
-  const response = await fetch(`${API_URL}/teachers/me/${teacherId}/send-access-email`, {
+  const response = await fetch(`${API_URL}/teachers/me/${teacherId}/regenerate-access-code`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,

@@ -83,7 +83,7 @@ export class InstitutionService {
     const institution = await this.prisma.institution.findUnique({ where: { id } });
     if (!institution) throw new NotFoundException('Instituição não encontrada');
 
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where: { institution_id: id },
       select: {
         id: true,
@@ -92,9 +92,16 @@ export class InstitutionService {
         user_type: true,
         is_minor: true,
         created_at: true,
+        access_code: true,
       },
       orderBy: { created_at: 'desc' },
     });
+
+    // Expõe apenas o estado de pendência — o código em si não sai na listagem
+    return users.map(({ access_code, ...user }) => ({
+      ...user,
+      pendingActivation: access_code !== null,
+    }));
   }
 
   async remove(id: string) {
