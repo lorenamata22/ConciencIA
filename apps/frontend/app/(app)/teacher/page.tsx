@@ -41,7 +41,7 @@ export default async function TeacherDashboardPage() {
         <TopbarIcons notificationCount={0} />
       </div>
 
-      <div className="flex items-start justify-between gap-4 mb-10 mt-25">
+      <div className="flex items-start justify-between gap-4 mb-15 mt-25">
         <div>
           <h1 className="text-3xl text-brand-brown">
             {greetingForHour(now.getHours())}
@@ -63,7 +63,7 @@ export default async function TeacherDashboardPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl card-shadow p-6 mb-10">
+      <div className="rounded-2xl card-shadow p-6 mb-15">
         <div className="flex items-center gap-2 mb-6">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" />
