@@ -101,7 +101,7 @@ export default async function TeacherClassesPage({
             ))}
           </div>
 
-          <StudentsTable students={detail?.students ?? []} />
+          {activeClassId && <StudentsTable students={detail?.students ?? []} classId={activeClassId} />}
         </>
       )}
 

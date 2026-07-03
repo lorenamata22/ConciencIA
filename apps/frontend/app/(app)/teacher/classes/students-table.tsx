@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import type { TeacherClassStudent } from '@/lib/api/teacher';
 import { getInitials } from '@/lib/utils/user';
 
@@ -54,7 +55,8 @@ function Pagination({ page, total, onPage }: { page: number; total: number; onPa
   );
 }
 
-export function StudentsTable({ students }: { students: TeacherClassStudent[] }) {
+export function StudentsTable({ students, classId }: { students: TeacherClassStudent[]; classId: string }) {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
@@ -111,7 +113,11 @@ export function StudentsTable({ students }: { students: TeacherClassStudent[] })
               </tr>
             ) : (
               paginated.map((student) => (
-                <tr key={student.id}>
+                <tr
+                  key={student.id}
+                  onClick={() => router.push(`/teacher/classes/${classId}/students/${student.id}`)}
+                  className="cursor-pointer hover:bg-brand-border/15 transition-colors"
+                >
                   <td className="pl-6 pr-4 py-4 border-t border-brand-border max-w-0">
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="shrink-0 w-9 h-9 rounded-full bg-[#8ACFC9] text-white flex items-center justify-center text-xs font-semibold">
