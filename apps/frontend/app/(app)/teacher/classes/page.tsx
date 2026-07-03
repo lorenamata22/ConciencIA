@@ -61,7 +61,6 @@ export default async function TeacherClassesPage({
                   }`}
                 >
                   <span>{c.name}</span>
-                  <span className="text-xs font-normal">{c.course.name}</span>
                 </Link>
               );
             })}
@@ -80,7 +79,7 @@ export default async function TeacherClassesPage({
                   <p className="text-base font-medium text-brand-brown truncate">
                     {subject.name} - {detail.class.name}
                   </p>
-                  <p className="text-sm text-brand-label mt-0.5">Curso {detail.class.year}</p>
+                  <p className="text-sm text-brand-label mt-0.5">{detail.class.course.name} -  {detail.class.year}</p>
                 </div>
                 <div className="flex items-center gap-10 shrink-0">
                   <div className="text-center">
