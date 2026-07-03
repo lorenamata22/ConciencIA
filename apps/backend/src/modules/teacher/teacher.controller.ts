@@ -28,6 +28,21 @@ export class TeacherController {
     return this.teacherService.getDashboardStats(user.userId);
   }
 
+  @Get('me/classes')
+  @Roles('teacher')
+  getMyClasses(@CurrentUser() user: JwtPayload) {
+    return this.teacherService.getMyClasses(user.userId);
+  }
+
+  @Get('me/classes/:classId')
+  @Roles('teacher')
+  getClassDetail(
+    @CurrentUser() user: JwtPayload,
+    @Param('classId') classId: string,
+  ) {
+    return this.teacherService.getClassDetail(user.userId, classId);
+  }
+
   @Get('me')
   findAll(@CurrentUser() user: JwtPayload) {
     return this.teacherService.findAllByInstitution(user.institutionId);

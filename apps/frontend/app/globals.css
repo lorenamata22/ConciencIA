@@ -43,6 +43,11 @@ body {
   box-shadow: 0px 0px 30px 0px #0000000D;
 }
 
+.divider {
+  border-left: 1px solid #DDDEE0;
+  height: 50px;
+}
+
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,

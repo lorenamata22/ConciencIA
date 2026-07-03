@@ -267,18 +267,23 @@ export class TeacherService {
     return this.findOne(userId, institutionId);
   }
 
-  // Sem filtro institution_id: o professor é localizado pelo user_id exato do
-  // JWT, e turmas/alunos são derivados transitivamente das próprias TeacherClass
-  // do professor — não há parâmetro de tenant vindo do cliente para validar.
-  async getDashboardStats(userId: string) {
+  private async getTeacherIdOrThrow(userId: string): Promise<string> {
     const teacher = await this.prisma.teacher.findUnique({
       where: { user_id: userId },
       select: { id: true },
     });
     if (!teacher) throw new NotFoundException('Professor não encontrado');
+    return teacher.id;
+  }
+
+  // Sem filtro institution_id: o professor é localizado pelo user_id exato do
+  // JWT, e turmas/alunos são derivados transitivamente das próprias TeacherClass
+  // do professor — não há parâmetro de tenant vindo do cliente para validar.
+  async getDashboardStats(userId: string) {
+    const teacherId = await this.getTeacherIdOrThrow(userId);
 
     const teacherClasses = await this.prisma.teacherClass.findMany({
-      where: { teacher_id: teacher.id },
+      where: { teacher_id: teacherId },
       select: { class_id: true },
     });
     const classIds = teacherClasses.map((tc) => tc.class_id);
@@ -296,6 +301,99 @@ export class TeacherService {
       activeStudentsCount: activeStudents.length,
       // Módulo de notas ainda não implementado — média fica null até GradeColumn/StudentGrade existirem
       averageGrade: null as number | null,
+    };
+  }
+
+  // Turmas atribuídas ao professor via TeacherClass — usadas como CTAs na tela Clases/Alumnos
+  async getMyClasses(userId: string) {
+    const teacherId = await this.getTeacherIdOrThrow(userId);
+
+    const teacherClasses = await this.prisma.teacherClass.findMany({
+      where: { teacher_id: teacherId },
+      select: {
+        class: {
+          select: {
+            id: true,
+            name: true,
+            year: true,
+            period: true,
+            course: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    return teacherClasses
+      .map((tc) => tc.class)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // Resumo de uma turma do professor: matérias que ele leciona nela (via TeacherSubject)
+  // e a lista de alunos. Nota média, assistência, estado e alunos em risco ainda não têm
+  // lógica implementada (grades/attendance/alertas não existem) — permanecem null.
+  async getClassDetail(userId: string, classId: string) {
+    const teacherId = await this.getTeacherIdOrThrow(userId);
+
+    const teacherClass = await this.prisma.teacherClass.findUnique({
+      where: { teacher_id_class_id: { teacher_id: teacherId, class_id: classId } },
+    });
+    if (!teacherClass)
+      throw new ForbiddenException('Esta turma não está atribuída a este professor');
+
+    const klass = await this.prisma.class.findUnique({
+      where: { id: classId },
+      select: {
+        id: true,
+        name: true,
+        year: true,
+        period: true,
+        course_id: true,
+        course: { select: { id: true, name: true } },
+      },
+    });
+    if (!klass) throw new NotFoundException('Turma não encontrada');
+
+    const [studentCount, teacherSubjects, studentClasses] = await Promise.all([
+      this.prisma.studentClass.count({ where: { class_id: classId } }),
+      this.prisma.teacherSubject.findMany({
+        where: { teacher_id: teacherId, subject: { course_id: klass.course_id } },
+        select: { subject: { select: { id: true, name: true } } },
+      }),
+      this.prisma.studentClass.findMany({
+        where: { class_id: classId },
+        select: {
+          student: {
+            select: { id: true, user: { select: { id: true, name: true, email: true } } },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      class: {
+        id: klass.id,
+        name: klass.name,
+        year: klass.year,
+        period: klass.period,
+        course: klass.course,
+      },
+      subjects: teacherSubjects.map((ts) => ({
+        id: ts.subject.id,
+        name: ts.subject.name,
+        studentCount,
+        averageGrade: null as number | null,
+        atRiskCount: null as number | null,
+      })),
+      students: studentClasses
+        .map((sc) => ({
+          id: sc.student.id,
+          name: sc.student.user.name,
+          email: sc.student.user.email,
+          averageGrade: null as number | null,
+          attendanceRate: null as number | null,
+          status: null as string | null,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
     };
   }
 

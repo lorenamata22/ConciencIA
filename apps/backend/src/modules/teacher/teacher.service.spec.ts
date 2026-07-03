@@ -352,6 +352,175 @@ describe('TeacherService', () => {
     });
   });
 
+  describe('getMyClasses', () => {
+    it('should throw NotFoundException when teacher does not exist for userId', async () => {
+      prismaMock.teacher.findUnique.mockResolvedValue(null);
+
+      await expect(service.getMyClasses('user-id-inexistente')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should return classes assigned to the teacher sorted by name', async () => {
+      prismaMock.teacher.findUnique.mockResolvedValue({
+        id: 'teacher-id-1',
+      } as any);
+      prismaMock.teacherClass.findMany.mockResolvedValue([
+        {
+          class: {
+            id: 'class-2',
+            name: '2º Bachillerato B',
+            year: 2026,
+            period: 'Mañana',
+            course: { id: 'course-1', name: 'Bachillerato' },
+          },
+        },
+        {
+          class: {
+            id: 'class-1',
+            name: '2º Bachillerato A',
+            year: 2026,
+            period: 'Mañana',
+            course: { id: 'course-1', name: 'Bachillerato' },
+          },
+        },
+      ] as any);
+
+      const result = await service.getMyClasses('user-id-1');
+
+      expect(result.map((c) => c.id)).toEqual(['class-1', 'class-2']);
+      expect(prismaMock.teacherClass.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { teacher_id: 'teacher-id-1' } }),
+      );
+    });
+
+    it('should return an empty array when the teacher has no classes assigned', async () => {
+      prismaMock.teacher.findUnique.mockResolvedValue({
+        id: 'teacher-id-1',
+      } as any);
+      prismaMock.teacherClass.findMany.mockResolvedValue([]);
+
+      const result = await service.getMyClasses('user-id-1');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getClassDetail', () => {
+    const mockClass = {
+      id: 'class-1',
+      name: '2º Bachillerato A',
+      year: 2026,
+      period: 'Mañana',
+      course_id: 'course-1',
+      course: { id: 'course-1', name: 'Bachillerato' },
+    };
+
+    it('should throw NotFoundException when teacher does not exist for userId', async () => {
+      prismaMock.teacher.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getClassDetail('user-id-inexistente', 'class-1'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException when the class is not assigned to the teacher', async () => {
+      prismaMock.teacher.findUnique.mockResolvedValue({
+        id: 'teacher-id-1',
+      } as any);
+      prismaMock.teacherClass.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getClassDetail('user-id-1', 'class-alheia'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException when the class no longer exists', async () => {
+      prismaMock.teacher.findUnique.mockResolvedValue({
+        id: 'teacher-id-1',
+      } as any);
+      prismaMock.teacherClass.findUnique.mockResolvedValue({
+        teacher_id: 'teacher-id-1',
+        class_id: 'class-1',
+      } as any);
+      prismaMock.class.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getClassDetail('user-id-1', 'class-1'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should return subjects taught by the teacher in the class with student count and null grade placeholders', async () => {
+      prismaMock.teacher.findUnique.mockResolvedValue({
+        id: 'teacher-id-1',
+      } as any);
+      prismaMock.teacherClass.findUnique.mockResolvedValue({
+        teacher_id: 'teacher-id-1',
+        class_id: 'class-1',
+      } as any);
+      prismaMock.class.findUnique.mockResolvedValue(mockClass as any);
+      prismaMock.studentClass.count.mockResolvedValue(28);
+      prismaMock.teacherSubject.findMany.mockResolvedValue([
+        { subject: { id: 'subject-1', name: 'Matemáticas' } },
+      ] as any);
+      prismaMock.studentClass.findMany.mockResolvedValue([]);
+
+      const result = await service.getClassDetail('user-id-1', 'class-1');
+
+      expect(result.subjects).toEqual([
+        {
+          id: 'subject-1',
+          name: 'Matemáticas',
+          studentCount: 28,
+          averageGrade: null,
+          atRiskCount: null,
+        },
+      ]);
+      expect(prismaMock.teacherSubject.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            teacher_id: 'teacher-id-1',
+            subject: { course_id: 'course-1' },
+          },
+        }),
+      );
+    });
+
+    it('should return students in the class with null grade/attendance/status placeholders', async () => {
+      prismaMock.teacher.findUnique.mockResolvedValue({
+        id: 'teacher-id-1',
+      } as any);
+      prismaMock.teacherClass.findUnique.mockResolvedValue({
+        teacher_id: 'teacher-id-1',
+        class_id: 'class-1',
+      } as any);
+      prismaMock.class.findUnique.mockResolvedValue(mockClass as any);
+      prismaMock.studentClass.count.mockResolvedValue(1);
+      prismaMock.teacherSubject.findMany.mockResolvedValue([]);
+      prismaMock.studentClass.findMany.mockResolvedValue([
+        {
+          student: {
+            id: 'student-1',
+            user: { id: 'user-2', name: 'María López', email: 'maria@escola.com' },
+          },
+        },
+      ] as any);
+
+      const result = await service.getClassDetail('user-id-1', 'class-1');
+
+      expect(result.students).toEqual([
+        {
+          id: 'student-1',
+          name: 'María López',
+          email: 'maria@escola.com',
+          averageGrade: null,
+          attendanceRate: null,
+          status: null,
+        },
+      ]);
+    });
+  });
+
   describe('findAllByInstitution — pendingActivation', () => {
     it('should include pendingActivation flag based on access_code', async () => {
       prismaMock.teacher.findMany.mockResolvedValue([

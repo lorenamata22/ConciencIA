@@ -84,3 +84,63 @@ export async function getTeacherDashboardStats(): Promise<TeacherDashboardStats>
     return fallback;
   }
 }
+
+export interface TeacherClassItem {
+  id: string;
+  name: string;
+  year: number;
+  period: string;
+  course: { id: string; name: string };
+}
+
+export interface TeacherClassSubjectSummary {
+  id: string;
+  name: string;
+  studentCount: number;
+  averageGrade: number | null;
+  atRiskCount: number | null;
+}
+
+export interface TeacherClassStudent {
+  id: string;
+  name: string;
+  email: string;
+  averageGrade: number | null;
+  attendanceRate: number | null;
+  status: string | null;
+}
+
+export interface TeacherClassDetail {
+  class: TeacherClassItem;
+  subjects: TeacherClassSubjectSummary[];
+  students: TeacherClassStudent[];
+}
+
+// Turmas atribuídas ao professor — usadas como CTAs na tela Clases/Alumnos
+export async function getMyTeacherClasses(): Promise<TeacherClassItem[]> {
+  try {
+    const res = await fetch(`${API_URL}/teachers/me/classes`, {
+      headers: await authHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json.data as TeacherClassItem[]) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getTeacherClassDetail(classId: string): Promise<TeacherClassDetail | null> {
+  try {
+    const res = await fetch(`${API_URL}/teachers/me/classes/${classId}`, {
+      headers: await authHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return (json.data as TeacherClassDetail) ?? null;
+  } catch {
+    return null;
+  }
+}
