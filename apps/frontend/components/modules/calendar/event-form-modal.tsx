@@ -182,7 +182,7 @@ export function EventFormModal({
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="px-8 py-3 rounded-xl text-sm font-medium bg-[#999DA3] text-white hover:bg-[#999DA3]/90 transition-colors disabled:opacity-60"
+            className="px-8 py-3 rounded-lg text-sm font-medium bg-primary text-primary-text hover:bg-primary-hover transition-colors transition-colors disabled:opacity-60"
           >
             {saving ? 'Guardando...' : 'Guardar'}
           </button>

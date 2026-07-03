@@ -267,6 +267,38 @@ export class TeacherService {
     return this.findOne(userId, institutionId);
   }
 
+  // Sem filtro institution_id: o professor é localizado pelo user_id exato do
+  // JWT, e turmas/alunos são derivados transitivamente das próprias TeacherClass
+  // do professor — não há parâmetro de tenant vindo do cliente para validar.
+  async getDashboardStats(userId: string) {
+    const teacher = await this.prisma.teacher.findUnique({
+      where: { user_id: userId },
+      select: { id: true },
+    });
+    if (!teacher) throw new NotFoundException('Professor não encontrado');
+
+    const teacherClasses = await this.prisma.teacherClass.findMany({
+      where: { teacher_id: teacher.id },
+      select: { class_id: true },
+    });
+    const classIds = teacherClasses.map((tc) => tc.class_id);
+
+    const activeStudents = classIds.length
+      ? await this.prisma.studentClass.findMany({
+          where: { class_id: { in: classIds } },
+          distinct: ['student_id'],
+          select: { student_id: true },
+        })
+      : [];
+
+    return {
+      assignedClassesCount: classIds.length,
+      activeStudentsCount: activeStudents.length,
+      // Módulo de notas ainda não implementado — média fica null até GradeColumn/StudentGrade existirem
+      averageGrade: null as number | null,
+    };
+  }
+
   async remove(userId: string, institutionId: string) {
     const teacher = await this.prisma.teacher.findUnique({
       where: { user_id: userId },

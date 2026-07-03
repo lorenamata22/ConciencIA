@@ -21,6 +21,7 @@ interface TokenizableUser {
   id: string;
   institution_id: string;
   user_type: string;
+  name: string;
 }
 
 @Injectable()
@@ -36,6 +37,7 @@ export class AuthService {
   private issueTokens(user: TokenizableUser): {
     accessToken: string;
     refreshToken: string;
+    name: string;
   } {
     const payload: JwtPayload = {
       userId: user.id,
@@ -53,12 +55,12 @@ export class AuthService {
       expiresIn: this.configService.get('JWT_REFRESH_EXPIRES_IN'),
     });
 
-    return { accessToken, refreshToken };
+    return { accessToken, refreshToken, name: user.name };
   }
 
   async login(
     dto: LoginDto,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  ): Promise<{ accessToken: string; refreshToken: string; name: string }> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -140,7 +142,7 @@ export class AuthService {
   // Auto-cadastro externo via license_code — acesso liberado imediatamente
   async register(
     dto: RegisterDto,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  ): Promise<{ accessToken: string; refreshToken: string; name: string }> {
     const user = await this.studentService.registerWithLicenseCode({
       name: dto.name,
       email: dto.email,
@@ -155,7 +157,7 @@ export class AuthService {
   // Ativação de pré-cadastro via access_code — define senha e consome o código
   async activate(
     dto: ActivateDto,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  ): Promise<{ accessToken: string; refreshToken: string; name: string }> {
     const user = await this.prisma.user.findUnique({
       where: { access_code: dto.accessCode },
     });

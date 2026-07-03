@@ -83,6 +83,7 @@ describe('AuthService', () => {
 
       expect(result.accessToken).toBe('access-token');
       expect(result.refreshToken).toBe('refresh-token');
+      expect(result.name).toBe('João Silva');
     });
 
     it('should throw UnauthorizedException when user is not found', async () => {
@@ -260,6 +261,7 @@ describe('AuthService', () => {
       });
       expect(result.accessToken).toBe('access-token');
       expect(result.refreshToken).toBe('refresh-token');
+      expect(result.name).toBe('João Silva');
     });
   });
 
@@ -298,6 +300,7 @@ describe('AuthService', () => {
 
       expect(result.accessToken).toBe('access-token');
       expect(result.refreshToken).toBe('refresh-token');
+      expect(result.name).toBe('João Silva');
     });
 
     it('should recalculate is_minor from birth_date on activation', async () => {

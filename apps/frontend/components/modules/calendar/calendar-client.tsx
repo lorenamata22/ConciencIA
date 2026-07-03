@@ -20,11 +20,15 @@ export function CalendarClient({
   userId,
   initialEvents,
   classes,
+  embedded = false,
 }: {
   role: string;
   userId: string;
   initialEvents: CalendarEvent[];
   classes: SelectableClass[];
+  // Quando embutido em outra página (ex: dashboard), esconde o label "Calendario"
+  // e remove o padding próprio do wrapper, já fornecido pelo container pai
+  embedded?: boolean;
 }) {
   const now = new Date();
   const [view, setView] = useState({ year: now.getFullYear(), month: now.getMonth() });
@@ -70,8 +74,10 @@ export function CalendarClient({
   }
 
   return (
-    <div className="pt-10 px-6 md:px-12 pb-16">
-      <p className="text-xs tracking-widest text-brand-label uppercase mb-10 mt-10">Calendario</p>
+    <div className={embedded ? '' : 'pt-10 px-6 md:px-12 pb-16'}>
+      {!embedded && (
+        <p className="text-xs tracking-widest text-brand-label uppercase mb-10 mt-10">Calendario</p>
+      )}
 
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-4">
@@ -89,7 +95,7 @@ export function CalendarClient({
         {canCreate && (
           <button
             onClick={() => setModal({ type: 'form', event: null })}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-[#999DA3] hover:bg-[#999DA3]/80 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-primary text-primary-text hover:bg-primary-hover transition-colors"
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />

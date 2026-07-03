@@ -22,6 +22,12 @@ import type { JwtPayload } from '../../common/decorators/current-user.decorator'
 export class TeacherController {
   constructor(private readonly teacherService: TeacherService) {}
 
+  @Get('dashboard')
+  @Roles('teacher')
+  getDashboard(@CurrentUser() user: JwtPayload) {
+    return this.teacherService.getDashboardStats(user.userId);
+  }
+
   @Get('me')
   findAll(@CurrentUser() user: JwtPayload) {
     return this.teacherService.findAllByInstitution(user.institutionId);

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { logoutAction } from '@/app/actions/auth';
+import { formatFirstName } from '@/lib/utils/user';
 
 type UserType = 'student' | 'teacher' | 'institution' | 'super_admin';
 
@@ -236,6 +237,12 @@ interface SidebarProps {
   userType: string;
 }
 
+// Instituições exibem o nome completo (ex: "Colégio X"); demais perfis, só o primeiro nome
+function formatDisplayName(fullName: string, userType: string): string {
+  if (userType === 'institution') return fullName.trim();
+  return formatFirstName(fullName);
+}
+
 export function Sidebar({ userName, userType }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -362,7 +369,7 @@ export function Sidebar({ userName, userType }: SidebarProps) {
           </div>
           <div className="mt-11">
             <p className="text-base font-semibold text-brand-brown">
-              ¡Hola, {userName || 'Usuario'}!
+              ¡Hola, {userName ? formatDisplayName(userName, userType) : 'Usuario'}!
             </p>
           </div>
           <div>

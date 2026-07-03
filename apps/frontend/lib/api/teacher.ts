@@ -58,3 +58,29 @@ export async function getMyTeacher(teacherId: string): Promise<TeacherItem | nul
     return null;
   }
 }
+
+export interface TeacherDashboardStats {
+  activeStudentsCount: number;
+  assignedClassesCount: number;
+  averageGrade: number | null;
+}
+
+export async function getTeacherDashboardStats(): Promise<TeacherDashboardStats> {
+  const fallback: TeacherDashboardStats = {
+    activeStudentsCount: 0,
+    assignedClassesCount: 0,
+    averageGrade: null,
+  };
+
+  try {
+    const res = await fetch(`${API_URL}/teachers/dashboard`, {
+      headers: await authHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return fallback;
+    const json = await res.json();
+    return (json.data as TeacherDashboardStats) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
