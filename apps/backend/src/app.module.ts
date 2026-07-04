@@ -12,6 +12,7 @@ import { PeriodOptionModule } from './modules/period-option/period-option.module
 import { TeacherModule } from './modules/teacher/teacher.module';
 import { StudentModule } from './modules/student/student.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
+import { TaskModule } from './modules/task/task.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
@@ -29,6 +30,7 @@ import { GlobalExceptionFilter } from './common/filters/exception.filter';
     TeacherModule,
     StudentModule,
     CalendarModule,
+    TaskModule,
   ],
   controllers: [AppController],
   providers: [

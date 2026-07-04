@@ -299,7 +299,7 @@ export class TeacherService {
     return {
       assignedClassesCount: classIds.length,
       activeStudentsCount: activeStudents.length,
-      // Módulo de notas ainda não implementado — média fica null até GradeColumn/StudentGrade existirem
+      // Média de notas ainda não agregada aqui — cálculo a partir de TaskGrade fica para depois
       averageGrade: null as number | null,
     };
   }

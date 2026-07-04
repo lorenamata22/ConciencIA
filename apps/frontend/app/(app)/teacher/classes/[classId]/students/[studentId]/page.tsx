@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTeacherClassDetail } from '@/lib/api/teacher';
+import { getStudentTaskGrades } from '@/lib/api/task';
 import { getInitials } from '@/lib/utils/user';
 import { TeacherTasksTable } from './teacher-tasks-table';
 
@@ -10,7 +11,10 @@ export default async function TeacherStudentDetailPage({
   params: Promise<{ classId: string; studentId: string }>;
 }) {
   const { classId, studentId } = await params;
-  const detail = await getTeacherClassDetail(classId);
+  const [detail, grades] = await Promise.all([
+    getTeacherClassDetail(classId),
+    getStudentTaskGrades(studentId, classId),
+  ]);
   const student = detail?.students.find((s) => s.id === studentId);
 
   if (!detail || !student) notFound();
@@ -72,7 +76,12 @@ export default async function TeacherStudentDetailPage({
         ))}
       </div>
 
-      <TeacherTasksTable subjects={detail.subjects} tasks={[]} />
+      <TeacherTasksTable
+        subjects={detail.subjects}
+        grades={grades}
+        classId={classId}
+        studentId={studentId}
+      />
 
     </div>
   );

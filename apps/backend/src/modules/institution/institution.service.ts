@@ -119,9 +119,11 @@ export class InstitutionService {
       const conversationIds = (await tx.conversation.findMany({ where: { student_id: { in: studentIds } }, select: { id: true } })).map(c => c.id);
       const eventIds = (await tx.event.findMany({ where: { institution_id: id }, select: { id: true } })).map(e => e.id);
       const fileIds = (await tx.file.findMany({ where: { institution_id: id }, select: { id: true } })).map(f => f.id);
-      const templateIds = (await tx.gradeTemplate.findMany({ where: { institution_id: id }, select: { id: true } })).map(t => t.id);
+      const taskIds = (await tx.task.findMany({ where: { institution_id: id }, select: { id: true } })).map(t => t.id);
 
-      await tx.studentGrade.deleteMany({ where: { student_id: { in: studentIds } } });
+      await tx.taskGrade.deleteMany({ where: { task_id: { in: taskIds } } });
+      await tx.taskClass.deleteMany({ where: { task_id: { in: taskIds } } });
+      await tx.task.deleteMany({ where: { institution_id: id } });
       await tx.eventClass.deleteMany({ where: { event_id: { in: eventIds } } });
       await tx.favorite.deleteMany({ where: { student_id: { in: studentIds } } });
       await tx.note.deleteMany({ where: { student_id: { in: studentIds } } });
@@ -143,8 +145,6 @@ export class InstitutionService {
       await tx.embedding.deleteMany({ where: { file_id: { in: fileIds } } });
       await tx.file.deleteMany({ where: { institution_id: id } });
       await tx.event.deleteMany({ where: { institution_id: id } });
-      await tx.gradeColumn.deleteMany({ where: { template_id: { in: templateIds } } });
-      await tx.gradeTemplate.deleteMany({ where: { institution_id: id } });
       await tx.topic.deleteMany({ where: { module_id: { in: moduleIds } } });
       await tx.module.deleteMany({ where: { subject_id: { in: subjectIds } } });
       await tx.subject.deleteMany({ where: { course_id: { in: courseIds } } });
@@ -172,6 +172,16 @@ export class InstitutionService {
       await tx.aIUsage.deleteMany({ where: { user_id: userId } });
 
       if (user.teacher) {
+        // Tareas do professor (e suas notas/turmas) antes de remover o teacher
+        const taskIds = (
+          await tx.task.findMany({
+            where: { teacher_id: user.teacher.id },
+            select: { id: true },
+          })
+        ).map((t) => t.id);
+        await tx.taskGrade.deleteMany({ where: { task_id: { in: taskIds } } });
+        await tx.taskClass.deleteMany({ where: { task_id: { in: taskIds } } });
+        await tx.task.deleteMany({ where: { teacher_id: user.teacher.id } });
         await tx.teacherSubject.deleteMany({ where: { teacher_id: user.teacher.id } });
         await tx.teacherClass.deleteMany({ where: { teacher_id: user.teacher.id } });
         await tx.teacher.delete({ where: { id: user.teacher.id } });
@@ -185,7 +195,7 @@ export class InstitutionService {
         });
         const conversationIds = conversations.map((c) => c.id);
 
-        await tx.studentGrade.deleteMany({ where: { student_id: user.student.id } });
+        await tx.taskGrade.deleteMany({ where: { student_id: user.student.id } });
         await tx.favorite.deleteMany({ where: { student_id: user.student.id } });
         await tx.note.deleteMany({ where: { student_id: user.student.id } });
         await tx.topicProgress.deleteMany({ where: { student_id: user.student.id } });

@@ -202,7 +202,7 @@ const NAV_SECTIONS_MENU: NavSection[] = [
       { name: 'Clases/Alumnos',href: '/teacher/classes',   Icon: UsersIcon,      roles: ['teacher'] },
       { name: 'Materiales',    href: '/teacher/materials', Icon: FolderIcon,     roles: ['teacher'] },
       { name: 'Actividades',   href: '/teacher/activities',Icon: CheckSquareIcon,roles: ['teacher'] },
-      { name: 'Notas',         href: '/teacher/grades',    Icon: ClipboardIcon,  roles: ['teacher'] },
+      { name: 'Tareas',        href: '/teacher/tasks',     Icon: ClipboardIcon,  roles: ['teacher'] },
       { name: 'Home',        href: '/institution',          Icon: HomeIcon,       roles: ['institution'] },
       { name: 'Usuarios',    href: '/institution/users',    Icon: UserIcon,       roles: ['institution'] },
       { name: 'Cursos',      href: '/institution/courses',  Icon: BookIcon,       roles: ['institution'] },

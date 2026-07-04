@@ -38,14 +38,6 @@ enum IngestionStatus {
   failed
 }
 
-enum GradeType {
-  number
-  letter
-  concept
-  percentage
-  pass_fail
-}
-
 // Público-alvo de um evento do calendário (broadcast)
 enum AudienceType {
   teacher
@@ -76,7 +68,7 @@ model Institution {
   alerts         Alert[]
   ai_usages      AIUsage[]
   events         Event[]
-  templates      GradeTemplate[]
+  tasks          Task[]
   period_options PeriodOption[]
 
   @@index([id])
@@ -126,7 +118,7 @@ model Student {
   alerts          Alert[]
   notes           Note[]
   favorites       Favorite[]
-  studentGrades   StudentGrade[]
+  taskGrades      TaskGrade[]
 
   @@map("student")
 }
@@ -138,6 +130,7 @@ model Teacher {
   user            User             @relation(fields: [user_id], references: [id])
   teacherClasses  TeacherClass[]
   teacherSubjects TeacherSubject[]
+  tasks           Task[]
 
   @@map("teacher")
 }
@@ -168,6 +161,7 @@ model Class {
   studentClasses StudentClass[]
   teacherClasses TeacherClass[]
   eventClasses   EventClass[]
+  taskClasses    TaskClass[]
 
   @@map("class")
 }
@@ -186,6 +180,7 @@ model Subject {
   studentMetrics  StudentMetrics[]
   teacherSubjects TeacherSubject[]
   events          Event[]
+  tasks           Task[]
 
   @@map("subject")
 }
@@ -448,45 +443,51 @@ model EventClass {
   @@map("event_class")
 }
 
-model GradeTemplate {
+// ─── Tareas (notas por tarefa, visão professor) ──────────────────────────────
+
+model Task {
   id             String   @id @default(uuid())
   institution_id String
+  teacher_id     String
+  subject_id     String
   name           String
   created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
-  institution Institution   @relation(fields: [institution_id], references: [id])
-  columns     GradeColumn[]
+  institution Institution @relation(fields: [institution_id], references: [id])
+  teacher     Teacher     @relation(fields: [teacher_id], references: [id])
+  subject     Subject     @relation(fields: [subject_id], references: [id])
+  taskClasses TaskClass[]
+  taskGrades  TaskGrade[]
 
-  @@map("grade_template")
+  @@index([institution_id])
+  @@index([teacher_id])
+  @@map("task")
 }
 
-model GradeColumn {
-  id           String    @id @default(uuid())
-  template_id  String
-  group_name   String
-  column_name  String
-  grade_type   GradeType
-  weight       Float     @default(1)
-  auto_average Boolean   @default(false)
+model TaskClass {
+  task_id  String
+  class_id String
 
-  template      GradeTemplate  @relation(fields: [template_id], references: [id])
-  studentGrades StudentGrade[]
+  task  Task  @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  class Class @relation(fields: [class_id], references: [id])
 
-  @@map("grade_column")
+  @@id([task_id, class_id])
+  @@map("task_class")
 }
 
-model StudentGrade {
+model TaskGrade {
   id         String   @id @default(uuid())
+  task_id    String
   student_id String
-  column_id  String
   value      String
   updated_at DateTime @updatedAt
 
-  student Student     @relation(fields: [student_id], references: [id])
-  column  GradeColumn @relation(fields: [column_id], references: [id])
+  task    Task    @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [student_id], references: [id])
 
-  @@unique([student_id, column_id])
-  @@map("student_grade")
+  @@unique([task_id, student_id])
+  @@map("task_grade")
 }
 
 // ─── Tabelas N:N ─────────────────────────────────────────────────────────���───
