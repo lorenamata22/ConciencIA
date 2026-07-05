@@ -78,13 +78,51 @@ export function CreateTeacherForm({ courses, subjects, classes }: Props) {
   const emailRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
 
-  const filteredSubjects = selectedCourseIds.length > 0
-    ? subjects.filter((s) => selectedCourseIds.includes(s.course.id))
-    : subjects;
+  // Clases do(s) curso(s) escolhido(s) — só aparecem após escolher un curso
+  const filteredClasses =
+    selectedCourseIds.length === 0
+      ? []
+      : classes.filter((c) => selectedCourseIds.includes(c.course.id));
 
-  const filteredClasses = selectedCourseIds.length > 0
-    ? classes.filter((c) => selectedCourseIds.includes(c.course.id))
-    : classes;
+  // Asignaturas do curso da(s) clase(s) escolhida(s) — só aparecem após escolher una clase
+  const selectedClassCourseIds = new Set(
+    classes.filter((c) => selectedClassIds.includes(c.id)).map((c) => c.course.id),
+  );
+  const filteredSubjects =
+    selectedClassIds.length === 0
+      ? []
+      : subjects.filter((s) => selectedClassCourseIds.has(s.course.id));
+
+  // Ao trocar cursos: poda as clases ainda válidas e, em cascata, as matérias
+  function handleCoursesChange(ids: string[]) {
+    setSelectedCourseIds(ids);
+    const validClasses = classes.filter((c) => ids.includes(c.course.id));
+    const validClassIds = selectedClassIds.filter((id) =>
+      validClasses.some((c) => c.id === id),
+    );
+    setSelectedClassIds(validClassIds);
+    const classCourseIds = new Set(
+      validClasses.filter((c) => validClassIds.includes(c.id)).map((c) => c.course.id),
+    );
+    setSelectedSubjectIds((prev) =>
+      prev.filter((id) =>
+        subjects.some((s) => s.id === id && classCourseIds.has(s.course.id)),
+      ),
+    );
+  }
+
+  // Ao trocar clases: poda as matérias que deixaram de pertencer ao curso das clases
+  function handleClassesChange(ids: string[]) {
+    setSelectedClassIds(ids);
+    const classCourseIds = new Set(
+      classes.filter((c) => ids.includes(c.id)).map((c) => c.course.id),
+    );
+    setSelectedSubjectIds((prev) =>
+      prev.filter((id) =>
+        subjects.some((s) => s.id === id && classCourseIds.has(s.course.id)),
+      ),
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -102,13 +140,13 @@ export function CreateTeacherForm({ courses, subjects, classes }: Props) {
       return;
     }
 
-    if (selectedSubjectIds.length === 0) {
-      setError('Selecciona al menos una asignatura.');
+    if (selectedClassIds.length === 0) {
+      setError('Selecciona al menos una clase.');
       return;
     }
 
-    if (selectedClassIds.length === 0) {
-      setError('Selecciona al menos una clase.');
+    if (selectedSubjectIds.length === 0) {
+      setError('Selecciona al menos una asignatura.');
       return;
     }
 
@@ -327,35 +365,40 @@ export function CreateTeacherForm({ courses, subjects, classes }: Props) {
               placeholder="Elegir curso"
               options={courses.map((c) => ({ id: c.id, label: c.name }))}
               defaultValues={[]}
-              onChange={(ids) => {
-                setSelectedCourseIds(ids);
-                setSelectedSubjectIds((prev) =>
-                  prev.filter((id) => filteredSubjects.some((s) => s.id === id)),
-                );
-                setSelectedClassIds((prev) =>
-                  prev.filter((id) => filteredClasses.some((c) => c.id === id)),
-                );
-              }}
-            />
-          </FormField>
-
-          <FormField label="Asignaturas" required>
-            <MultiSelect
-              name="subjectIds"
-              placeholder="Elegir asignatura"
-              options={filteredSubjects.map((s) => ({ id: s.id, label: s.name }))}
-              defaultValues={selectedSubjectIds}
-              onChange={setSelectedSubjectIds}
+              onChange={handleCoursesChange}
             />
           </FormField>
 
           <FormField label="Clases" required>
             <MultiSelect
+              key={`classes-${selectedCourseIds.join('|')}`}
               name="classIds"
-              placeholder="Elegir clase"
-              options={filteredClasses.map((c) => ({ id: c.id, label: `${c.name} (${c.course.name})` }))}
+              placeholder={
+                selectedCourseIds.length === 0
+                  ? 'Primero selecciona un curso'
+                  : 'Elegir clase'
+              }
+              options={filteredClasses.map((c) => ({
+                id: c.id,
+                label: `${c.name} (${c.course.name})`,
+              }))}
               defaultValues={selectedClassIds}
-              onChange={setSelectedClassIds}
+              onChange={handleClassesChange}
+            />
+          </FormField>
+
+          <FormField label="Asignaturas" required>
+            <MultiSelect
+              key={`subjects-${selectedClassIds.join('|')}`}
+              name="subjectIds"
+              placeholder={
+                selectedClassIds.length === 0
+                  ? 'Primero selecciona una clase'
+                  : 'Elegir asignatura'
+              }
+              options={filteredSubjects.map((s) => ({ id: s.id, label: s.name }))}
+              defaultValues={selectedSubjectIds}
+              onChange={setSelectedSubjectIds}
             />
           </FormField>
 

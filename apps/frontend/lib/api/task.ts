@@ -14,9 +14,22 @@ export interface TaskOption {
   name: string;
 }
 
+export interface TaskSubjectOption {
+  id: string;
+  name: string;
+  courseId: string;
+}
+
+export interface TaskClassOption {
+  id: string;
+  name: string;
+  courseId: string;
+  courseName: string;
+}
+
 export interface TaskFormOptions {
-  subjects: TaskOption[];
-  classes: TaskOption[];
+  subjects: TaskSubjectOption[];
+  classes: TaskClassOption[];
 }
 
 export interface TaskListItem {

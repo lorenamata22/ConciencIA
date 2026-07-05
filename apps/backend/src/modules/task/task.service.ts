@@ -68,20 +68,39 @@ export class TaskService {
     const [teacherSubjects, teacherClasses] = await Promise.all([
       this.prisma.teacherSubject.findMany({
         where: { teacher_id: teacherId },
-        select: { subject: { select: { id: true, name: true } } },
+        select: { subject: { select: { id: true, name: true, course_id: true } } },
       }),
       this.prisma.teacherClass.findMany({
         where: { teacher_id: teacherId },
-        select: { class: { select: { id: true, name: true } } },
+        select: {
+          class: {
+            select: {
+              id: true,
+              name: true,
+              course_id: true,
+              course: { select: { name: true } },
+            },
+          },
+        },
       }),
     ]);
 
     return {
+      // courseId permite ao front filtrar as matérias pela(s) turma(s) escolhida(s)
       subjects: teacherSubjects
-        .map((ts) => ts.subject)
+        .map((ts) => ({
+          id: ts.subject.id,
+          name: ts.subject.name,
+          courseId: ts.subject.course_id,
+        }))
         .sort((a, b) => a.name.localeCompare(b.name)),
       classes: teacherClasses
-        .map((tc) => tc.class)
+        .map((tc) => ({
+          id: tc.class.id,
+          name: tc.class.name,
+          courseId: tc.class.course_id,
+          courseName: tc.class.course.name,
+        }))
         .sort((a, b) => a.name.localeCompare(b.name)),
     };
   }

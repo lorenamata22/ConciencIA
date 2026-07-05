@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createTaskAction, updateTaskAction, type TaskActionState } from '@/app/actions/task';
@@ -32,11 +32,50 @@ export function TaskForm({
 
   const isSuccess = !!state.success;
 
-  const subjectOptions = options.subjects.map((s) => ({ id: s.id, label: s.name }));
-  const classOptions = options.classes.map((c) => ({ id: c.id, label: c.name }));
-  const onlySubject = options.subjects.length === 1 ? options.subjects[0] : null;
-  const defaultSubjectId = task?.subject.id ?? onlySubject?.id;
   const defaultClassIds = task?.classes.map((c) => c.id) ?? [];
+  const [selectedClassIds, setSelectedClassIds] = useState<string[]>(defaultClassIds);
+  const [subjectId, setSubjectId] = useState<string | undefined>(task?.subject.id);
+
+  // Turmas com o nome do curso junto: "Clase - Curso"
+  const classOptions = options.classes.map((c) => ({
+    id: c.id,
+    label: `${c.name} - ${c.courseName}`,
+  }));
+
+  // Matérias disponíveis = as do professor cujo curso bate com a(s) turma(s) escolhida(s)
+  const availableSubjects = useMemo(() => {
+    if (selectedClassIds.length === 0) return [];
+    const courseIds = new Set(
+      options.classes
+        .filter((c) => selectedClassIds.includes(c.id))
+        .map((c) => c.courseId),
+    );
+    return options.subjects.filter((s) => courseIds.has(s.courseId));
+  }, [selectedClassIds, options]);
+
+  // Ao mudar as turmas, reconcilia a matéria: auto-seleciona se só houver 1;
+  // limpa se a atual deixou de ser válida para o novo conjunto de cursos
+  function handleClassesChange(ids: string[]) {
+    setSelectedClassIds(ids);
+    const courseIds = new Set(
+      options.classes.filter((c) => ids.includes(c.id)).map((c) => c.courseId),
+    );
+    const nextAvailable = options.subjects.filter((s) => courseIds.has(s.courseId));
+    if (nextAvailable.length === 1) {
+      setSubjectId(nextAvailable[0].id);
+    } else if (subjectId && !nextAvailable.some((s) => s.id === subjectId)) {
+      setSubjectId(undefined);
+    }
+  }
+
+  // Força o ObjectSelect a refletir mudanças externas (auto-seleção / reset)
+  const subjectKey = `${availableSubjects.map((s) => s.id).join('|')}::${subjectId ?? ''}`;
+  const subjectPlaceholder =
+    selectedClassIds.length === 0
+      ? 'Primero selecciona una o más clases'
+      : availableSubjects.length === 0
+        ? 'No hay asignaturas para las clases elegidas'
+        : 'Selecciona una asignatura';
 
   return (
     <>
@@ -151,21 +190,24 @@ export function TaskForm({
               />
             </FormField>
 
-            <FormField label="Asignatura" required>
-              <ObjectSelect
-                name="subjectId"
-                placeholder="Selecciona una asignatura"
-                options={subjectOptions}
-                defaultValue={defaultSubjectId}
-              />
-            </FormField>
-
             <FormField label="Clases" required>
               <MultiSelect
                 name="classIds"
                 placeholder="Selecciona una o más clases"
                 options={classOptions}
                 defaultValues={defaultClassIds}
+                onChange={handleClassesChange}
+              />
+            </FormField>
+
+            <FormField label="Asignatura" required>
+              <ObjectSelect
+                key={subjectKey}
+                name="subjectId"
+                placeholder={subjectPlaceholder}
+                options={availableSubjects.map((s) => ({ id: s.id, label: s.name }))}
+                defaultValue={subjectId}
+                onChange={setSubjectId}
               />
             </FormField>
 
