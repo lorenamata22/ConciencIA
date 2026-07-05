@@ -26,14 +26,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       message =
         typeof exceptionResponse === 'string'
           ? exceptionResponse
-          : (exceptionResponse as any).message ?? exception.message;
+          : ((exceptionResponse as any).message ?? exception.message);
 
       // class-validator retorna array de mensagens — pegar a primeira
       if (Array.isArray(message)) {
         message = message[0];
       }
     } else if (exception instanceof Error) {
-      this.logger.error(`Unhandled error: ${exception.message}`, exception.stack);
+      this.logger.error(
+        `Unhandled error: ${exception.message}`,
+        exception.stack,
+      );
     }
 
     response.status(statusCode).json({

@@ -45,7 +45,12 @@ describe('TopicService', () => {
       prismaMock.topic.create.mockResolvedValue(mockTopic as any);
 
       const result = await service.create(
-        { module_id: 'module-id-1', title: 'Equações', description: 'Linear', order: 1 },
+        {
+          module_id: 'module-id-1',
+          title: 'Equações',
+          description: 'Linear',
+          order: 1,
+        },
         institutionId,
       );
 
@@ -59,7 +64,10 @@ describe('TopicService', () => {
       } as any);
 
       await expect(
-        service.create({ module_id: 'module-id-1', title: 'Hack', order: 1 }, institutionId),
+        service.create(
+          { module_id: 'module-id-1', title: 'Hack', order: 1 },
+          institutionId,
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
   });
@@ -78,17 +86,17 @@ describe('TopicService', () => {
         module: { subject: { course: { institution_id: 'outro-inst' } } },
       } as any);
 
-      await expect(service.findOne('topic-id-1', institutionId)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.findOne('topic-id-1', institutionId),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should throw NotFoundException when topic does not exist', async () => {
       prismaMock.topic.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('id-inexistente', institutionId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.findOne('id-inexistente', institutionId),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

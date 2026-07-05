@@ -34,7 +34,10 @@ describe('CourseService', () => {
     it('should create course with institution_id from JWT', async () => {
       prismaMock.course.create.mockResolvedValue(mockCourse as any);
 
-      await service.create({ name: 'Ensino Médio', description: 'Curso' }, institutionId);
+      await service.create(
+        { name: 'Ensino Médio', description: 'Curso' },
+        institutionId,
+      );
 
       expect(prismaMock.course.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -72,26 +75,33 @@ describe('CourseService', () => {
         institution_id: 'outro-inst',
       } as any);
 
-      await expect(service.findOne('course-id-1', institutionId)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.findOne('course-id-1', institutionId),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should throw NotFoundException when course does not exist', async () => {
       prismaMock.course.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('id-inexistente', institutionId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.findOne('id-inexistente', institutionId),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('update', () => {
     it('should update course from same institution', async () => {
       prismaMock.course.findUnique.mockResolvedValue(mockCourse as any);
-      prismaMock.course.update.mockResolvedValue({ ...mockCourse, name: 'Novo Nome' } as any);
+      prismaMock.course.update.mockResolvedValue({
+        ...mockCourse,
+        name: 'Novo Nome',
+      } as any);
 
-      const result = await service.update('course-id-1', { name: 'Novo Nome' }, institutionId);
+      const result = await service.update(
+        'course-id-1',
+        { name: 'Novo Nome' },
+        institutionId,
+      );
       expect(result.name).toBe('Novo Nome');
     });
 

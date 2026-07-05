@@ -70,6 +70,8 @@ model Institution {
   events         Event[]
   tasks          Task[]
   period_options PeriodOption[]
+  folders        Folder[]
+  drive_files    DriveFile[]
 
   @@index([id])
   @@map("institution")
@@ -97,6 +99,8 @@ model User {
   ai_usages             AIUsage[]
   password_reset_tokens PasswordResetToken[]
   createdEvents         Event[]
+  createdFolders        Folder[]             @relation("UserFolders")
+  createdDriveFiles     DriveFile[]          @relation("UserDriveFiles")
 
   @@index([institution_id])
   @@map("user")
@@ -488,6 +492,49 @@ model TaskGrade {
 
   @@unique([task_id, student_id])
   @@map("task_grade")
+}
+
+// ─── Drive (Archivos) — árvore de pastas/arquivos compartilhada por instituição ──
+
+model Folder {
+  id             String   @id @default(uuid())
+  institution_id String
+  parent_id      String?
+  name           String
+  created_by     String // user_id de quem criou (JWT.userId)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  institution Institution @relation(fields: [institution_id], references: [id])
+  parent      Folder?     @relation("FolderChildren", fields: [parent_id], references: [id], onDelete: Cascade)
+  children    Folder[]    @relation("FolderChildren")
+  creator     User        @relation("UserFolders", fields: [created_by], references: [id])
+  files       DriveFile[]
+
+  @@index([institution_id])
+  @@index([parent_id])
+  @@map("folder")
+}
+
+model DriveFile {
+  id             String   @id @default(uuid())
+  institution_id String
+  folder_id      String? // null = raiz da instituição
+  name           String
+  mime_type      String
+  size           Int
+  storage_path   String // chave do objeto no R2 — usada para presign e delete
+  created_by     String
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  institution Institution @relation(fields: [institution_id], references: [id])
+  folder      Folder?     @relation(fields: [folder_id], references: [id], onDelete: Cascade)
+  creator     User        @relation("UserDriveFiles", fields: [created_by], references: [id])
+
+  @@index([institution_id])
+  @@index([folder_id])
+  @@map("drive_file")
 }
 
 // ─── Tabelas N:N ─────────────────────────────────────────────────────────���───

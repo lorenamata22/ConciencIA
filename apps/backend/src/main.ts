@@ -22,15 +22,16 @@ async function bootstrap() {
   // Pipe global de validação — usa class-validator nos DTOs
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,       // remove campos não declarados no DTO
+      whitelist: true, // remove campos não declarados no DTO
       forbidNonWhitelisted: true,
-      transform: true,       // converte tipos automaticamente
+      transform: true, // converte tipos automaticamente
     }),
   );
 
   const configService = app.get(ConfigService);
   // Railway injeta PORT dinamicamente — tem prioridade sobre BACKEND_PORT
-  const port = process.env.PORT ?? configService.get<number>('BACKEND_PORT') ?? 3001;
+  const port =
+    process.env.PORT ?? configService.get<number>('BACKEND_PORT') ?? 3001;
 
   await app.listen(port, '0.0.0.0');
 }

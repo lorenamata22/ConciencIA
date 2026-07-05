@@ -339,7 +339,10 @@ export class TeacherService {
   // Média simples arredondada em 1 casa decimal
   private average(values: number[]): number | null {
     if (values.length === 0) return null;
-    return Math.round((values.reduce((sum, v) => sum + v, 0) / values.length) * 10) / 10;
+    return (
+      Math.round((values.reduce((sum, v) => sum + v, 0) / values.length) * 10) /
+      10
+    );
   }
 
   // Nota média de cada aluno considerando todas as tareas (de qualquer matéria) do professor na turma
@@ -361,12 +364,17 @@ export class TeacherService {
 
   // Nota média da matéria: média das notas médias de cada aluno naquela matéria
   private averageGradeBySubject(
-    taskGrades: { student_id: string; value: string; task: { subject_id: string } }[],
+    taskGrades: {
+      student_id: string;
+      value: string;
+      task: { subject_id: string };
+    }[],
   ): Map<string, number> {
     const valuesByStudentPerSubject = new Map<string, Map<string, number[]>>();
     for (const g of taskGrades) {
       const subjectId = g.task.subject_id;
-      const valuesByStudent = valuesByStudentPerSubject.get(subjectId) ?? new Map();
+      const valuesByStudent =
+        valuesByStudentPerSubject.get(subjectId) ?? new Map();
       const values = valuesByStudent.get(g.student_id) ?? [];
       values.push(Number(g.value));
       valuesByStudent.set(g.student_id, values);
@@ -375,7 +383,9 @@ export class TeacherService {
 
     const result = new Map<string, number>();
     for (const [subjectId, valuesByStudent] of valuesByStudentPerSubject) {
-      const studentAverages = [...valuesByStudent.values()].map((v) => this.average(v) as number);
+      const studentAverages = [...valuesByStudent.values()].map(
+        (v) => this.average(v) as number,
+      );
       result.set(subjectId, this.average(studentAverages) as number);
     }
     return result;
@@ -388,10 +398,14 @@ export class TeacherService {
     const teacherId = await this.getTeacherIdOrThrow(userId);
 
     const teacherClass = await this.prisma.teacherClass.findUnique({
-      where: { teacher_id_class_id: { teacher_id: teacherId, class_id: classId } },
+      where: {
+        teacher_id_class_id: { teacher_id: teacherId, class_id: classId },
+      },
     });
     if (!teacherClass)
-      throw new ForbiddenException('Esta turma não está atribuída a este professor');
+      throw new ForbiddenException(
+        'Esta turma não está atribuída a este professor',
+      );
 
     const klass = await this.prisma.class.findUnique({
       where: { id: classId },
@@ -406,27 +420,41 @@ export class TeacherService {
     });
     if (!klass) throw new NotFoundException('Turma não encontrada');
 
-    const [studentCount, teacherSubjects, studentClasses, taskGrades] = await Promise.all([
-      this.prisma.studentClass.count({ where: { class_id: classId } }),
-      this.prisma.teacherSubject.findMany({
-        where: { teacher_id: teacherId, subject: { course_id: klass.course_id } },
-        select: { subject: { select: { id: true, name: true } } },
-      }),
-      this.prisma.studentClass.findMany({
-        where: { class_id: classId },
-        select: {
-          student: {
-            select: { id: true, user: { select: { id: true, name: true, email: true } } },
+    const [studentCount, teacherSubjects, studentClasses, taskGrades] =
+      await Promise.all([
+        this.prisma.studentClass.count({ where: { class_id: classId } }),
+        this.prisma.teacherSubject.findMany({
+          where: {
+            teacher_id: teacherId,
+            subject: { course_id: klass.course_id },
           },
-        },
-      }),
-      this.prisma.taskGrade.findMany({
-        where: {
-          task: { teacher_id: teacherId, taskClasses: { some: { class_id: classId } } },
-        },
-        select: { student_id: true, value: true, task: { select: { subject_id: true } } },
-      }),
-    ]);
+          select: { subject: { select: { id: true, name: true } } },
+        }),
+        this.prisma.studentClass.findMany({
+          where: { class_id: classId },
+          select: {
+            student: {
+              select: {
+                id: true,
+                user: { select: { id: true, name: true, email: true } },
+              },
+            },
+          },
+        }),
+        this.prisma.taskGrade.findMany({
+          where: {
+            task: {
+              teacher_id: teacherId,
+              taskClasses: { some: { class_id: classId } },
+            },
+          },
+          select: {
+            student_id: true,
+            value: true,
+            task: { select: { subject_id: true } },
+          },
+        }),
+      ]);
 
     const averageGradeByStudent = this.averageGradeByStudent(taskGrades);
     const averageGradeBySubject = this.averageGradeBySubject(taskGrades);

@@ -60,7 +60,9 @@ describe('ConversationService', () => {
 
   describe('findOne', () => {
     it('should return conversation when student owns it', async () => {
-      prismaMock.conversation.findUnique.mockResolvedValue(mockConversation as any);
+      prismaMock.conversation.findUnique.mockResolvedValue(
+        mockConversation as any,
+      );
 
       const result = await service.findOne('conv-id-1', studentId);
       expect(result.id).toBe('conv-id-1');
@@ -72,23 +74,30 @@ describe('ConversationService', () => {
         student_id: 'outro-student',
       } as any);
 
-      await expect(service.findOne('conv-id-1', studentId)).rejects.toThrow(ForbiddenException);
+      await expect(service.findOne('conv-id-1', studentId)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should throw NotFoundException when conversation does not exist', async () => {
       prismaMock.conversation.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('id-inexistente', studentId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.findOne('id-inexistente', studentId),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('findByStudentAndSubject', () => {
     it('should return conversations filtered by student and subject', async () => {
-      prismaMock.conversation.findMany.mockResolvedValue([mockConversation] as any);
+      prismaMock.conversation.findMany.mockResolvedValue([
+        mockConversation,
+      ] as any);
 
-      const result = await service.findByStudentAndSubject(studentId, 'subject-id-1');
+      const result = await service.findByStudentAndSubject(
+        studentId,
+        'subject-id-1',
+      );
 
       expect(result).toHaveLength(1);
       expect(prismaMock.conversation.findMany).toHaveBeenCalledWith(

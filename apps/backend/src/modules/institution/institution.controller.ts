@@ -53,7 +53,10 @@ export class InstitutionController {
 
   @Delete('me/users/:userId')
   @Roles('institution')
-  deleteMyUser(@CurrentUser() user: JwtPayload, @Param('userId') userId: string) {
+  deleteMyUser(
+    @CurrentUser() user: JwtPayload,
+    @Param('userId') userId: string,
+  ) {
     return this.institutionService.deleteUser(user.institutionId, userId);
   }
 
@@ -108,7 +111,12 @@ export class InstitutionController {
       storage: memoryStorage(),
       limits: { fileSize: 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        const allowed = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
+        const allowed = [
+          'image/png',
+          'image/jpeg',
+          'image/svg+xml',
+          'image/webp',
+        ];
         cb(null, allowed.includes(file.mimetype));
       },
     }),
@@ -117,10 +125,17 @@ export class InstitutionController {
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    if (!file) throw new BadRequestException('Formato de arquivo não suportado. Use PNG, JPG, SVG ou WebP.');
+    if (!file)
+      throw new BadRequestException(
+        'Formato de arquivo não suportado. Use PNG, JPG, SVG ou WebP.',
+      );
     const ext = extname(file.originalname);
     const storagePath = `logos/${randomUUID()}${ext}`;
-    const url = await this.storageService.upload(storagePath, file.buffer, file.mimetype);
+    const url = await this.storageService.upload(
+      storagePath,
+      file.buffer,
+      file.mimetype,
+    );
     return this.institutionService.updateLogo(id, url);
   }
 }

@@ -138,15 +138,21 @@ describe('Chat Exam Mode (e2e)', () => {
     await prisma.exam.deleteMany({ where: {} });
     await prisma.message.deleteMany({ where: {} });
     await prisma.conversation.deleteMany({ where: {} });
-    await prisma.aIUsage.deleteMany({ where: { institution_id: institutionId } });
+    await prisma.aIUsage.deleteMany({
+      where: { institution_id: institutionId },
+    });
     await prisma.studentClass.deleteMany({ where: {} });
     await prisma.student.deleteMany({ where: {} });
-    await prisma.user.deleteMany({ where: { email: { contains: '@test-e2e.com' } } });
+    await prisma.user.deleteMany({
+      where: { email: { contains: '@test-e2e.com' } },
+    });
     await prisma.topic.deleteMany({ where: { id: topicId } });
     await prisma.module.deleteMany({ where: { subject_id: subjectId } });
     await prisma.subject.deleteMany({ where: { id: subjectId } });
     await prisma.class.deleteMany({ where: { license_code: 'EXAM001' } });
-    await prisma.course.deleteMany({ where: { institution_id: institutionId } });
+    await prisma.course.deleteMany({
+      where: { institution_id: institutionId },
+    });
     await prisma.institution.deleteMany({ where: { id: institutionId } });
     await app.close();
   });

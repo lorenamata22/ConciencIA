@@ -224,7 +224,10 @@ export class CalendarService {
 
   // Garante que o evento já carregado é visível ao papel (usado no findOne)
   private async assertVisible(
-    event: { audience_type: AudienceType; eventClasses: { class_id: string }[] },
+    event: {
+      audience_type: AudienceType;
+      eventClasses: { class_id: string }[];
+    },
     user: JwtPayload,
   ) {
     if (user.userType === 'institution' || user.userType === 'super_admin') {

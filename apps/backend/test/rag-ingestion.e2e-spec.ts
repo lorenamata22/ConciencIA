@@ -89,7 +89,9 @@ describe('RAG Ingestion Pipeline (e2e)', () => {
     await prisma.embedding.deleteMany({ where: {} });
     await prisma.file.deleteMany({ where: { institution_id: institutionId } });
     await prisma.subject.deleteMany({ where: { id: subjectId } });
-    await prisma.course.deleteMany({ where: { institution_id: institutionId } });
+    await prisma.course.deleteMany({
+      where: { institution_id: institutionId },
+    });
     await prisma.user.deleteMany({ where: { institution_id: institutionId } });
     await prisma.institution.deleteMany({ where: { id: institutionId } });
     await app.close();
@@ -263,7 +265,9 @@ describe('RAG Ingestion Pipeline (e2e)', () => {
       });
 
       // Forçar falha no embed
-      aiProviderMock.getProvider().embed.mockRejectedValueOnce(new Error('API Error'));
+      aiProviderMock
+        .getProvider()
+        .embed.mockRejectedValueOnce(new Error('API Error'));
 
       const ragService = app.get<RagService>(RagService);
       await expect(
@@ -276,7 +280,9 @@ describe('RAG Ingestion Pipeline (e2e)', () => {
         }),
       ).rejects.toThrow();
 
-      const updatedFile = await prisma.file.findUnique({ where: { id: failFile.id } });
+      const updatedFile = await prisma.file.findUnique({
+        where: { id: failFile.id },
+      });
       expect(updatedFile?.ingestion_status).toBe('failed');
 
       await prisma.file.delete({ where: { id: failFile.id } });

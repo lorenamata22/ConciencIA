@@ -56,7 +56,10 @@ describe('CourseModuleService', () => {
       } as any);
 
       await expect(
-        service.create({ subject_id: 'subject-id-1', name: 'Hack', order: 1 }, institutionId),
+        service.create(
+          { subject_id: 'subject-id-1', name: 'Hack', order: 1 },
+          institutionId,
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
   });
@@ -75,17 +78,17 @@ describe('CourseModuleService', () => {
         subject: { course: { institution_id: 'outro-inst' } },
       } as any);
 
-      await expect(service.findOne('module-id-1', institutionId)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.findOne('module-id-1', institutionId),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should throw NotFoundException when module does not exist', async () => {
       prismaMock.module.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('id-inexistente', institutionId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.findOne('id-inexistente', institutionId),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

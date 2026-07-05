@@ -42,7 +42,11 @@ describe('AIProviderService', () => {
   describe('complete', () => {
     it('should delegate complete call to the active provider', async () => {
       const options = { messages: [{ role: 'user', content: 'Olá' }] };
-      const expectedResult = { content: 'Resposta', promptTokens: 10, responseTokens: 5 };
+      const expectedResult = {
+        content: 'Resposta',
+        promptTokens: 10,
+        responseTokens: 5,
+      };
       jest.spyOn(service, 'getProvider').mockReturnValue({
         complete: jest.fn().mockResolvedValue(expectedResult),
         stream: jest.fn(),
@@ -58,7 +62,10 @@ describe('AIProviderService', () => {
   describe('embed', () => {
     it('should delegate embed call to the active provider', async () => {
       const text = 'Texto para embedding';
-      const expectedResult = { vector: new Array(1024).fill(0), model: 'voyage-3' };
+      const expectedResult = {
+        vector: new Array(1024).fill(0),
+        model: 'voyage-3',
+      };
       jest.spyOn(service, 'getProvider').mockReturnValue({
         complete: jest.fn(),
         stream: jest.fn(),

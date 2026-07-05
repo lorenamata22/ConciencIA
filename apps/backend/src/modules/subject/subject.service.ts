@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { DocumentType } from '@prisma/client';
@@ -36,7 +40,10 @@ export class SubjectService {
     const course = await this.prisma.course.findFirst({
       where: { id: dto.courseId, institution_id: institutionId },
     });
-    if (!course) throw new NotFoundException('Curso não encontrado ou não pertence à instituição');
+    if (!course)
+      throw new NotFoundException(
+        'Curso não encontrado ou não pertence à instituição',
+      );
 
     const institution = await this.prisma.institution.findUnique({
       where: { id: institutionId },
@@ -67,7 +74,11 @@ export class SubjectService {
     });
   }
 
-  async update(institutionId: string, subjectId: string, dto: UpdateSubjectDto) {
+  async update(
+    institutionId: string,
+    subjectId: string,
+    dto: UpdateSubjectDto,
+  ) {
     const subject = await this.prisma.subject.findFirst({
       where: { id: subjectId, course: { institution_id: institutionId } },
     });
@@ -77,7 +88,10 @@ export class SubjectService {
       const course = await this.prisma.course.findFirst({
         where: { id: dto.courseId, institution_id: institutionId },
       });
-      if (!course) throw new NotFoundException('Curso não encontrado ou não pertence à instituição');
+      if (!course)
+        throw new NotFoundException(
+          'Curso não encontrado ou não pertence à instituição',
+        );
     }
 
     return this.prisma.subject.update({
@@ -115,7 +129,11 @@ export class SubjectService {
 
     const ext = extname(file.originalname);
     const storagePath = `institutions/${institutionId}/subjects/${subjectId}/${randomUUID()}${ext}`;
-    const url = await this.storage.upload(storagePath, file.buffer, file.mimetype);
+    const url = await this.storage.upload(
+      storagePath,
+      file.buffer,
+      file.mimetype,
+    );
 
     return this.prisma.file.create({
       data: {
@@ -128,7 +146,13 @@ export class SubjectService {
         size: file.size,
         is_ai_context: true,
       },
-      select: { id: true, name: true, url: true, size: true, ingestion_status: true },
+      select: {
+        id: true,
+        name: true,
+        url: true,
+        size: true,
+        ingestion_status: true,
+      },
     });
   }
 

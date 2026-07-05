@@ -21,7 +21,10 @@ export class PeriodOptionService {
 
     if (options.length === 0) {
       await this.prisma.periodOption.createMany({
-        data: DEFAULT_PERIODS.map((label) => ({ institution_id: institutionId, label })),
+        data: DEFAULT_PERIODS.map((label) => ({
+          institution_id: institutionId,
+          label,
+        })),
       });
       return DEFAULT_PERIODS;
     }
@@ -31,10 +34,15 @@ export class PeriodOptionService {
 
   async replaceAll(institutionId: string, labels: string[]): Promise<string[]> {
     const cleaned = labels.map((l) => l.trim()).filter(Boolean);
-    await this.prisma.periodOption.deleteMany({ where: { institution_id: institutionId } });
+    await this.prisma.periodOption.deleteMany({
+      where: { institution_id: institutionId },
+    });
     if (cleaned.length > 0) {
       await this.prisma.periodOption.createMany({
-        data: cleaned.map((label) => ({ institution_id: institutionId, label })),
+        data: cleaned.map((label) => ({
+          institution_id: institutionId,
+          label,
+        })),
       });
     }
     return cleaned;

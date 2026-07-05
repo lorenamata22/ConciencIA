@@ -40,7 +40,11 @@ describe('SubjectService', () => {
       prismaMock.subject.create.mockResolvedValue(mockSubject as any);
 
       const result = await service.create(
-        { course_id: 'course-id-1', name: 'Matemática', description: 'Álgebra' },
+        {
+          course_id: 'course-id-1',
+          name: 'Matemática',
+          description: 'Álgebra',
+        },
         institutionId,
       );
 
@@ -54,7 +58,10 @@ describe('SubjectService', () => {
       } as any);
 
       await expect(
-        service.create({ course_id: 'course-id-1', name: 'Hack' }, institutionId),
+        service.create(
+          { course_id: 'course-id-1', name: 'Hack' },
+          institutionId,
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
   });
@@ -73,17 +80,17 @@ describe('SubjectService', () => {
         course: { institution_id: 'outro-inst' },
       } as any);
 
-      await expect(service.findOne('subject-id-1', institutionId)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.findOne('subject-id-1', institutionId),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should throw NotFoundException when subject does not exist', async () => {
       prismaMock.subject.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('id-inexistente', institutionId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.findOne('id-inexistente', institutionId),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

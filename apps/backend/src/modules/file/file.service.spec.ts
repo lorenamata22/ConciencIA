@@ -140,7 +140,11 @@ describe('FileService', () => {
         ingestion_status: 'pending',
       } as any);
 
-      await service.replace('file-id-1', 'https://storage/aula-01-v2.pdf', institutionId);
+      await service.replace(
+        'file-id-1',
+        'https://storage/aula-01-v2.pdf',
+        institutionId,
+      );
 
       expect(ragQueue.add).toHaveBeenCalledWith(
         'rag-ingestion',

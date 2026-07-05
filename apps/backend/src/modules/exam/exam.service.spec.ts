@@ -101,7 +101,15 @@ describe('ExamService', () => {
 
   describe('calculateScore', () => {
     it('should calculate score based on 7 questions', async () => {
-      const answers = { q1: 'a', q2: 'a', q3: 'a', q4: 'a', q5: 'a', q6: 'a', q7: 'a' };
+      const answers = {
+        q1: 'a',
+        q2: 'a',
+        q3: 'a',
+        q4: 'a',
+        q5: 'a',
+        q6: 'a',
+        q7: 'a',
+      };
       const score = await service.calculateScore(answers, {
         correctAnswers: 7,
         totalQuestions: 7,
@@ -111,7 +119,10 @@ describe('ExamService', () => {
     });
 
     it('should calculate proportional score for partial correctness', async () => {
-      const score = await service.calculateScore({}, { correctAnswers: 5, totalQuestions: 7 });
+      const score = await service.calculateScore(
+        {},
+        { correctAnswers: 5, totalQuestions: 7 },
+      );
       expect(score).toBeCloseTo(7.14, 1);
     });
   });

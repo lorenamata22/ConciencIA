@@ -85,7 +85,10 @@ describe('AlertService', () => {
   describe('resolve', () => {
     it('should mark alert as resolved', async () => {
       prismaMock.alert.findUnique.mockResolvedValue(mockAlert as any);
-      prismaMock.alert.update.mockResolvedValue({ ...mockAlert, resolved: true } as any);
+      prismaMock.alert.update.mockResolvedValue({
+        ...mockAlert,
+        resolved: true,
+      } as any);
 
       const result = await service.resolve('alert-id-1', institutionId);
       expect(result.resolved).toBe(true);
@@ -98,9 +101,9 @@ describe('AlertService', () => {
         institution_id: 'outro-inst',
       } as any);
 
-      await expect(service.resolve('alert-id-1', institutionId)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.resolve('alert-id-1', institutionId),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 

@@ -13,6 +13,7 @@ import { TeacherModule } from './modules/teacher/teacher.module';
 import { StudentModule } from './modules/student/student.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { TaskModule } from './modules/task/task.module';
+import { DriveModule } from './modules/drive/drive.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
@@ -31,6 +32,7 @@ import { GlobalExceptionFilter } from './common/filters/exception.filter';
     StudentModule,
     CalendarModule,
     TaskModule,
+    DriveModule,
   ],
   controllers: [AppController],
   providers: [

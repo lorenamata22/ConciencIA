@@ -68,7 +68,9 @@ export class TaskService {
     const [teacherSubjects, teacherClasses] = await Promise.all([
       this.prisma.teacherSubject.findMany({
         where: { teacher_id: teacherId },
-        select: { subject: { select: { id: true, name: true, course_id: true } } },
+        select: {
+          subject: { select: { id: true, name: true, course_id: true } },
+        },
       }),
       this.prisma.teacherClass.findMany({
         where: { teacher_id: teacherId },

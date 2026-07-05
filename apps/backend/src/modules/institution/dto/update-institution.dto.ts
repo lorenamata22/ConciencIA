@@ -1,4 +1,11 @@
-import { IsOptional, IsInt, IsPositive, IsString, IsIn, IsEmail } from 'class-validator';
+import {
+  IsOptional,
+  IsInt,
+  IsPositive,
+  IsString,
+  IsIn,
+  IsEmail,
+} from 'class-validator';
 
 export class UpdateInstitutionDto {
   @IsOptional()

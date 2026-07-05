@@ -36,7 +36,7 @@ describe('Topic Completion Flow (e2e)', () => {
     }),
   });
 
-  let aiProviderMock = createAiMock(false);
+  const aiProviderMock = createAiMock(false);
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -120,7 +120,9 @@ describe('Topic Completion Flow (e2e)', () => {
     await prisma.exam.deleteMany({ where: {} });
     await prisma.message.deleteMany({ where: {} });
     await prisma.conversation.deleteMany({ where: {} });
-    await prisma.aIUsage.deleteMany({ where: { institution_id: institutionId } });
+    await prisma.aIUsage.deleteMany({
+      where: { institution_id: institutionId },
+    });
     await prisma.studentClass.deleteMany({ where: {} });
     await prisma.student.deleteMany({ where: {} });
     await prisma.user.deleteMany({ where: { institution_id: institutionId } });
@@ -128,7 +130,9 @@ describe('Topic Completion Flow (e2e)', () => {
     await prisma.module.deleteMany({ where: { subject_id: subjectId } });
     await prisma.subject.deleteMany({ where: { id: subjectId } });
     await prisma.class.deleteMany({ where: { license_code: 'TOPIC001' } });
-    await prisma.course.deleteMany({ where: { institution_id: institutionId } });
+    await prisma.course.deleteMany({
+      where: { institution_id: institutionId },
+    });
     await prisma.institution.deleteMany({ where: { id: institutionId } });
     await app.close();
   });
@@ -235,7 +239,10 @@ describe('Topic Completion Flow (e2e)', () => {
 
     const teacherLogin = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email: 'professor-topic@test-e2e.com', password: 'SenhaSegura123' });
+      .send({
+        email: 'professor-topic@test-e2e.com',
+        password: 'SenhaSegura123',
+      });
 
     const teacherToken = teacherLogin.body.data?.accessToken;
 

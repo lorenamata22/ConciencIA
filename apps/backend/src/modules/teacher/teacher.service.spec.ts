@@ -531,7 +531,11 @@ describe('TeacherService', () => {
         {
           student: {
             id: 'student-1',
-            user: { id: 'user-2', name: 'María López', email: 'maria@escola.com' },
+            user: {
+              id: 'user-2',
+              name: 'María López',
+              email: 'maria@escola.com',
+            },
           },
         },
       ] as any);
@@ -567,9 +571,21 @@ describe('TeacherService', () => {
       prismaMock.studentClass.findMany.mockResolvedValue([]);
       // student-1 fica com média 8.0 (8 e 8), student-2 fica com média 6.0 — média da turma: 7.0
       prismaMock.taskGrade.findMany.mockResolvedValue([
-        { student_id: 'student-1', value: '8.0', task: { subject_id: 'subject-1' } },
-        { student_id: 'student-1', value: '8.0', task: { subject_id: 'subject-1' } },
-        { student_id: 'student-2', value: '6.0', task: { subject_id: 'subject-1' } },
+        {
+          student_id: 'student-1',
+          value: '8.0',
+          task: { subject_id: 'subject-1' },
+        },
+        {
+          student_id: 'student-1',
+          value: '8.0',
+          task: { subject_id: 'subject-1' },
+        },
+        {
+          student_id: 'student-2',
+          value: '6.0',
+          task: { subject_id: 'subject-1' },
+        },
       ] as any);
 
       const result = await service.getClassDetail('user-id-1', 'class-1');
@@ -592,13 +608,25 @@ describe('TeacherService', () => {
         {
           student: {
             id: 'student-1',
-            user: { id: 'user-2', name: 'María López', email: 'maria@escola.com' },
+            user: {
+              id: 'user-2',
+              name: 'María López',
+              email: 'maria@escola.com',
+            },
           },
         },
       ] as any);
       prismaMock.taskGrade.findMany.mockResolvedValue([
-        { student_id: 'student-1', value: '9.0', task: { subject_id: 'subject-1' } },
-        { student_id: 'student-1', value: '7.0', task: { subject_id: 'subject-2' } },
+        {
+          student_id: 'student-1',
+          value: '9.0',
+          task: { subject_id: 'subject-1' },
+        },
+        {
+          student_id: 'student-1',
+          value: '7.0',
+          task: { subject_id: 'subject-2' },
+        },
       ] as any);
 
       const result = await service.getClassDetail('user-id-1', 'class-1');

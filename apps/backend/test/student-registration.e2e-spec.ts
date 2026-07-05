@@ -32,7 +32,9 @@ describe('Student Registration (e2e)', () => {
     // Limpar dados de teste para evitar conflito entre cenários
     await prisma.studentClass.deleteMany({ where: {} });
     await prisma.student.deleteMany({ where: {} });
-    await prisma.user.deleteMany({ where: { email: { contains: '@test-e2e.com' } } });
+    await prisma.user.deleteMany({
+      where: { email: { contains: '@test-e2e.com' } },
+    });
   });
 
   let institutionId: string;
@@ -65,7 +67,9 @@ describe('Student Registration (e2e)', () => {
 
   afterAll(async () => {
     await prisma.class.deleteMany({ where: { id: classId } });
-    await prisma.course.deleteMany({ where: { institution_id: institutionId } });
+    await prisma.course.deleteMany({
+      where: { institution_id: institutionId },
+    });
     await prisma.institution.deleteMany({ where: { id: institutionId } });
   });
 
@@ -171,7 +175,9 @@ describe('Student Registration (e2e)', () => {
       })
       .expect(201);
 
-    const user = await prisma.user.findUnique({ where: { email: 'hash@test-e2e.com' } });
+    const user = await prisma.user.findUnique({
+      where: { email: 'hash@test-e2e.com' },
+    });
     expect(user?.password).not.toBe('SenhaSegura123');
     expect(user?.password.length).toBeGreaterThan(20); // bcrypt hash
   });

@@ -73,7 +73,10 @@ describe('MessageService', () => {
 
   describe('findByConversation', () => {
     it('should return messages ordered by creation date', async () => {
-      prismaMock.message.findMany.mockResolvedValue([mockMessage, mockAssistantMessage] as any);
+      prismaMock.message.findMany.mockResolvedValue([
+        mockMessage,
+        mockAssistantMessage,
+      ] as any);
 
       await service.findByConversation('conv-id-1');
 

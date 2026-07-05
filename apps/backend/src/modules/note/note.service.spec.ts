@@ -73,13 +73,17 @@ describe('NoteService', () => {
         student_id: 'outro-student',
       } as any);
 
-      await expect(service.remove('note-id-1', studentId)).rejects.toThrow(ForbiddenException);
+      await expect(service.remove('note-id-1', studentId)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should throw NotFoundException when note does not exist', async () => {
       prismaMock.note.findUnique.mockResolvedValue(null);
 
-      await expect(service.remove('note-id-1', studentId)).rejects.toThrow(NotFoundException);
+      await expect(service.remove('note-id-1', studentId)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

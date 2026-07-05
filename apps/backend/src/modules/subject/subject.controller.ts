@@ -40,7 +40,11 @@ export class SubjectController {
 
   @Patch('me/:id')
   @Roles('institution')
-  update(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Body() dto: UpdateSubjectDto) {
+  update(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: UpdateSubjectDto,
+  ) {
     return this.subjectService.update(user.institutionId, id, dto);
   }
 
@@ -64,7 +68,10 @@ export class SubjectController {
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    if (!file) throw new BadRequestException('Formato de arquivo não suportado. Use PDF ou DOCX.');
+    if (!file)
+      throw new BadRequestException(
+        'Formato de arquivo não suportado. Use PDF ou DOCX.',
+      );
     return this.subjectService.uploadProgram(user.institutionId, id, file);
   }
 

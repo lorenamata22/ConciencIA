@@ -58,7 +58,12 @@ describe('ClassService', () => {
 
       await expect(
         service.create(
-          { course_id: 'course-id-1', name: 'Turma A', year: 2026, period: '1' },
+          {
+            course_id: 'course-id-1',
+            name: 'Turma A',
+            year: 2026,
+            period: '1',
+          },
           institutionId,
         ),
       ).rejects.toThrow(ForbiddenException);
@@ -79,17 +84,17 @@ describe('ClassService', () => {
         course: { institution_id: 'outro-inst' },
       } as any);
 
-      await expect(service.findOne('class-id-1', institutionId)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.findOne('class-id-1', institutionId),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should throw NotFoundException when class does not exist', async () => {
       prismaMock.class.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('id-inexistente', institutionId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.findOne('id-inexistente', institutionId),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 

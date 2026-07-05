@@ -36,7 +36,10 @@ describe('RagService', () => {
       providers: [
         RagService,
         { provide: PrismaService, useValue: prismaMock },
-        { provide: AIProviderService, useValue: { getProvider: () => aiProviderMock } },
+        {
+          provide: AIProviderService,
+          useValue: { getProvider: () => aiProviderMock },
+        },
       ],
     }).compile();
 
@@ -153,7 +156,9 @@ describe('RagService', () => {
         expect.objectContaining({
           data: expect.arrayContaining([
             expect.objectContaining({
-              metadata: expect.objectContaining({ institution_id: institutionId }),
+              metadata: expect.objectContaining({
+                institution_id: institutionId,
+              }),
             }),
           ]),
         }),

@@ -44,7 +44,10 @@ describe('UserService', () => {
     });
 
     it('should throw ForbiddenException when user belongs to different institution', async () => {
-      prismaMock.user.findUnique.mockResolvedValue({ ...mockUser, institution_id: 'outro-inst' } as any);
+      prismaMock.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        institution_id: 'outro-inst',
+      } as any);
 
       await expect(service.findOne('user-id-1', institutionId)).rejects.toThrow(
         ForbiddenException,
@@ -54,9 +57,9 @@ describe('UserService', () => {
     it('should throw NotFoundException when user does not exist', async () => {
       prismaMock.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('id-inexistente', institutionId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.findOne('id-inexistente', institutionId),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -78,14 +81,24 @@ describe('UserService', () => {
   describe('update', () => {
     it('should update user from same institution', async () => {
       prismaMock.user.findUnique.mockResolvedValue(mockUser as any);
-      prismaMock.user.update.mockResolvedValue({ ...mockUser, name: 'Maria Atualizada' } as any);
+      prismaMock.user.update.mockResolvedValue({
+        ...mockUser,
+        name: 'Maria Atualizada',
+      } as any);
 
-      const result = await service.update('user-id-1', { name: 'Maria Atualizada' }, institutionId);
+      const result = await service.update(
+        'user-id-1',
+        { name: 'Maria Atualizada' },
+        institutionId,
+      );
       expect(result.name).toBe('Maria Atualizada');
     });
 
     it('should throw ForbiddenException when trying to update user from different institution', async () => {
-      prismaMock.user.findUnique.mockResolvedValue({ ...mockUser, institution_id: 'outro-inst' } as any);
+      prismaMock.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        institution_id: 'outro-inst',
+      } as any);
 
       await expect(
         service.update('user-id-1', { name: 'Hack' }, institutionId),
@@ -103,7 +116,10 @@ describe('UserService', () => {
     });
 
     it('should throw ForbiddenException when deleting user from different institution', async () => {
-      prismaMock.user.findUnique.mockResolvedValue({ ...mockUser, institution_id: 'outro-inst' } as any);
+      prismaMock.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        institution_id: 'outro-inst',
+      } as any);
 
       await expect(service.remove('user-id-1', institutionId)).rejects.toThrow(
         ForbiddenException,

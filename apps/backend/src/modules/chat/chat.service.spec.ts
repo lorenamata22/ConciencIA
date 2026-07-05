@@ -75,7 +75,10 @@ describe('ChatService', () => {
       providers: [
         ChatService,
         { provide: PrismaService, useValue: prismaMock },
-        { provide: AIProviderService, useValue: { getProvider: () => aiProviderMock } },
+        {
+          provide: AIProviderService,
+          useValue: { getProvider: () => aiProviderMock },
+        },
         { provide: RagService, useValue: ragServiceMock },
         { provide: AIUsageService, useValue: aiUsageServiceMock },
         { provide: ExamService, useValue: examServiceMock },
@@ -92,7 +95,9 @@ describe('ChatService', () => {
         ...mockStudent.user,
         ai_token_limit: null,
       } as any);
-      prismaMock.institution.findUnique.mockResolvedValue(mockInstitution as any);
+      prismaMock.institution.findUnique.mockResolvedValue(
+        mockInstitution as any,
+      );
       aiUsageServiceMock.getTotalUsageByInstitution.mockResolvedValue(500000);
 
       const canProceed = await service.checkTokenLimit(userId, institutionId);
@@ -104,7 +109,9 @@ describe('ChatService', () => {
         ...mockStudent.user,
         ai_token_limit: null,
       } as any);
-      prismaMock.institution.findUnique.mockResolvedValue(mockInstitution as any);
+      prismaMock.institution.findUnique.mockResolvedValue(
+        mockInstitution as any,
+      );
       // Consumiu 100% do limite
       aiUsageServiceMock.getTotalUsageByInstitution.mockResolvedValue(1000000);
 
@@ -139,7 +146,9 @@ describe('ChatService', () => {
     it('should build prompt with RAG context, cognitive profile and conversation summary', async () => {
       prismaMock.student.findUnique.mockResolvedValue(mockStudent as any);
       prismaMock.user.findUnique.mockResolvedValue(mockStudent.user as any);
-      prismaMock.institution.findUnique.mockResolvedValue(mockInstitution as any);
+      prismaMock.institution.findUnique.mockResolvedValue(
+        mockInstitution as any,
+      );
       prismaMock.conversationSummary.findFirst.mockResolvedValue({
         summary: 'Resumo da sessão anterior',
       } as any);
@@ -193,7 +202,9 @@ describe('ChatService', () => {
     it('should register AI usage in AI_Usage table after each call', async () => {
       prismaMock.student.findUnique.mockResolvedValue(mockStudent as any);
       prismaMock.user.findUnique.mockResolvedValue(mockStudent.user as any);
-      prismaMock.institution.findUnique.mockResolvedValue(mockInstitution as any);
+      prismaMock.institution.findUnique.mockResolvedValue(
+        mockInstitution as any,
+      );
       prismaMock.conversationSummary.findFirst.mockResolvedValue(null);
       ragServiceMock.search.mockResolvedValue([]);
       aiUsageServiceMock.getTotalUsageByInstitution.mockResolvedValue(0);
@@ -226,7 +237,9 @@ describe('ChatService', () => {
 
       prismaMock.student.findUnique.mockResolvedValue(minorStudent as any);
       prismaMock.user.findUnique.mockResolvedValue(minorStudent.user as any);
-      prismaMock.institution.findUnique.mockResolvedValue(mockInstitution as any);
+      prismaMock.institution.findUnique.mockResolvedValue(
+        mockInstitution as any,
+      );
       prismaMock.conversationSummary.findFirst.mockResolvedValue(null);
       ragServiceMock.search.mockResolvedValue([]);
       aiUsageServiceMock.getTotalUsageByInstitution.mockResolvedValue(0);
@@ -261,7 +274,9 @@ describe('ChatService', () => {
     it('should send complete conversation history (not summary) in exam mode', async () => {
       prismaMock.student.findUnique.mockResolvedValue(mockStudent as any);
       prismaMock.user.findUnique.mockResolvedValue(mockStudent.user as any);
-      prismaMock.institution.findUnique.mockResolvedValue(mockInstitution as any);
+      prismaMock.institution.findUnique.mockResolvedValue(
+        mockInstitution as any,
+      );
       prismaMock.conversation.findUnique.mockResolvedValue({
         id: 'conv-id-1',
         student_id: studentId,
@@ -292,7 +307,10 @@ describe('ChatService', () => {
       expect(streamSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           messages: expect.arrayContaining([
-            expect.objectContaining({ role: 'assistant', content: 'Pergunta 1?' }),
+            expect.objectContaining({
+              role: 'assistant',
+              content: 'Pergunta 1?',
+            }),
             expect.objectContaining({ role: 'user', content: 'Resposta 1' }),
           ]),
         }),
@@ -302,7 +320,9 @@ describe('ChatService', () => {
     it('should detect [EXAM_COMPLETE] tag and finalize exam', async () => {
       prismaMock.student.findUnique.mockResolvedValue(mockStudent as any);
       prismaMock.user.findUnique.mockResolvedValue(mockStudent.user as any);
-      prismaMock.institution.findUnique.mockResolvedValue(mockInstitution as any);
+      prismaMock.institution.findUnique.mockResolvedValue(
+        mockInstitution as any,
+      );
       prismaMock.conversation.findUnique.mockResolvedValue({
         id: 'conv-id-1',
         student_id: studentId,
@@ -340,7 +360,9 @@ describe('ChatService', () => {
     it('should mark topic as completed ONLY after [EXAM_COMPLETE] is detected', async () => {
       prismaMock.student.findUnique.mockResolvedValue(mockStudent as any);
       prismaMock.user.findUnique.mockResolvedValue(mockStudent.user as any);
-      prismaMock.institution.findUnique.mockResolvedValue(mockInstitution as any);
+      prismaMock.institution.findUnique.mockResolvedValue(
+        mockInstitution as any,
+      );
       prismaMock.conversation.findUnique.mockResolvedValue({
         id: 'conv-id-1',
         student_id: studentId,
@@ -371,7 +393,9 @@ describe('ChatService', () => {
     it('should register AI usage after each exam message', async () => {
       prismaMock.student.findUnique.mockResolvedValue(mockStudent as any);
       prismaMock.user.findUnique.mockResolvedValue(mockStudent.user as any);
-      prismaMock.institution.findUnique.mockResolvedValue(mockInstitution as any);
+      prismaMock.institution.findUnique.mockResolvedValue(
+        mockInstitution as any,
+      );
       prismaMock.conversation.findUnique.mockResolvedValue({
         id: 'conv-id-1',
         student_id: studentId,

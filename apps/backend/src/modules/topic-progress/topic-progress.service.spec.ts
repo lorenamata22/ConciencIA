@@ -33,15 +33,28 @@ describe('TopicProgressService', () => {
     it('should create progress record when it does not exist', async () => {
       prismaMock.topicProgress.upsert.mockResolvedValue(mockProgress as any);
 
-      const result = await service.upsert('student-id-1', 'topic-id-1', 'in_progress');
+      const result = await service.upsert(
+        'student-id-1',
+        'topic-id-1',
+        'in_progress',
+      );
       expect(result.status).toBe('in_progress');
     });
 
     it('should update existing progress record', async () => {
-      const updated = { ...mockProgress, status: 'completed', total_time: 3600 };
+      const updated = {
+        ...mockProgress,
+        status: 'completed',
+        total_time: 3600,
+      };
       prismaMock.topicProgress.upsert.mockResolvedValue(updated as any);
 
-      const result = await service.upsert('student-id-1', 'topic-id-1', 'completed', 3600);
+      const result = await service.upsert(
+        'student-id-1',
+        'topic-id-1',
+        'completed',
+        3600,
+      );
       expect(result.status).toBe('completed');
     });
   });
@@ -53,7 +66,10 @@ describe('TopicProgressService', () => {
         status: 'completed',
       } as any);
 
-      const result = await service.markAsCompleted('student-id-1', 'topic-id-1');
+      const result = await service.markAsCompleted(
+        'student-id-1',
+        'topic-id-1',
+      );
       expect(result.status).toBe('completed');
 
       // Deve usar upsert para não perder dados se já existir
@@ -68,7 +84,9 @@ describe('TopicProgressService', () => {
 
   describe('findByStudent', () => {
     it('should return all topic progress records for a student', async () => {
-      prismaMock.topicProgress.findMany.mockResolvedValue([mockProgress] as any);
+      prismaMock.topicProgress.findMany.mockResolvedValue([
+        mockProgress,
+      ] as any);
 
       const result = await service.findByStudent('student-id-1');
       expect(result).toHaveLength(1);
@@ -82,9 +100,14 @@ describe('TopicProgressService', () => {
 
   describe('getStudentProgressBySubject', () => {
     it('should return progress grouped by topics of a subject', async () => {
-      prismaMock.topicProgress.findMany.mockResolvedValue([mockProgress] as any);
+      prismaMock.topicProgress.findMany.mockResolvedValue([
+        mockProgress,
+      ] as any);
 
-      const result = await service.getByStudentAndSubject('student-id-1', 'subject-id-1');
+      const result = await service.getByStudentAndSubject(
+        'student-id-1',
+        'subject-id-1',
+      );
       expect(result).toHaveLength(1);
     });
   });

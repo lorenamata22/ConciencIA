@@ -18,7 +18,10 @@ export class PeriodOptionController {
   }
 
   @Put('me')
-  replaceAll(@CurrentUser() user: JwtPayload, @Body() dto: ReplacePeriodOptionsDto) {
+  replaceAll(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: ReplacePeriodOptionsDto,
+  ) {
     return this.service.replaceAll(user.institutionId, dto.labels);
   }
 }

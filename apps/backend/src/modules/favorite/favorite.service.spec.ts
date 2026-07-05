@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { FavoriteService } from './favorite.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { createPrismaMock, PrismaMock } from '../../prisma/prisma-mock';
@@ -84,7 +88,9 @@ describe('FavoriteService', () => {
 
   describe('findByStudent', () => {
     it('should return favorites for a student', async () => {
-      prismaMock.favorite.findMany.mockResolvedValue([mockFavoriteMessage] as any);
+      prismaMock.favorite.findMany.mockResolvedValue([
+        mockFavoriteMessage,
+      ] as any);
 
       const result = await service.findByStudent(studentId);
 
@@ -99,7 +105,9 @@ describe('FavoriteService', () => {
 
   describe('remove', () => {
     it('should delete favorite when student owns it', async () => {
-      prismaMock.favorite.findUnique.mockResolvedValue(mockFavoriteMessage as any);
+      prismaMock.favorite.findUnique.mockResolvedValue(
+        mockFavoriteMessage as any,
+      );
       prismaMock.favorite.delete.mockResolvedValue(mockFavoriteMessage as any);
 
       await service.remove('fav-id-1', studentId);
@@ -112,13 +120,17 @@ describe('FavoriteService', () => {
         student_id: 'outro-student',
       } as any);
 
-      await expect(service.remove('fav-id-1', studentId)).rejects.toThrow(ForbiddenException);
+      await expect(service.remove('fav-id-1', studentId)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should throw NotFoundException when favorite does not exist', async () => {
       prismaMock.favorite.findUnique.mockResolvedValue(null);
 
-      await expect(service.remove('fav-id-1', studentId)).rejects.toThrow(NotFoundException);
+      await expect(service.remove('fav-id-1', studentId)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

@@ -67,7 +67,10 @@ describe('InstitutionService', () => {
       expect(result.id).toBe('inst-id-1');
       expect(prismaMock.institution.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ name: 'Escola Alpha', email: 'contato@alpha.edu' }),
+          data: expect.objectContaining({
+            name: 'Escola Alpha',
+            email: 'contato@alpha.edu',
+          }),
         }),
       );
       expect(prismaMock.user.create).toHaveBeenCalledWith(
@@ -84,7 +87,9 @@ describe('InstitutionService', () => {
 
   describe('findOne', () => {
     it('should return institution by id', async () => {
-      prismaMock.institution.findUnique.mockResolvedValue(mockInstitution as any);
+      prismaMock.institution.findUnique.mockResolvedValue(
+        mockInstitution as any,
+      );
 
       const result = await service.findOne('inst-id-1');
       expect(result.name).toBe('Escola Alpha');
@@ -93,14 +98,18 @@ describe('InstitutionService', () => {
     it('should throw NotFoundException when institution does not exist', async () => {
       prismaMock.institution.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('id-inexistente')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('id-inexistente')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('update', () => {
     it('should update institution', async () => {
       const updated = { ...mockInstitution, name: 'Escola Beta' };
-      prismaMock.institution.findUnique.mockResolvedValue(mockInstitution as any);
+      prismaMock.institution.findUnique.mockResolvedValue(
+        mockInstitution as any,
+      );
       prismaMock.institution.update.mockResolvedValue(updated as any);
 
       const result = await service.update('inst-id-1', { name: 'Escola Beta' });
@@ -110,7 +119,9 @@ describe('InstitutionService', () => {
 
   describe('findAll', () => {
     it('should return list of all institutions (super_admin only)', async () => {
-      prismaMock.institution.findMany.mockResolvedValue([mockInstitution] as any);
+      prismaMock.institution.findMany.mockResolvedValue([
+        mockInstitution,
+      ] as any);
 
       const result = await service.findAll();
       expect(result).toHaveLength(1);
@@ -146,21 +157,28 @@ describe('InstitutionService', () => {
   describe('getStats', () => {
     it('should return institution counts grouped by status', async () => {
       prismaMock.institution.count
-        .mockResolvedValueOnce(5)  // total
-        .mockResolvedValueOnce(3)  // active
-        .mockResolvedValueOnce(1)  // pending
+        .mockResolvedValueOnce(5) // total
+        .mockResolvedValueOnce(3) // active
+        .mockResolvedValueOnce(1) // pending
         .mockResolvedValueOnce(2); // newThisMonth
 
       const result = await service.getStats();
 
-      expect(result).toEqual({ total: 5, active: 3, pending: 1, newThisMonth: 2 });
+      expect(result).toEqual({
+        total: 5,
+        active: 3,
+        pending: 1,
+        newThisMonth: 2,
+      });
       expect(prismaMock.institution.count).toHaveBeenCalledTimes(4);
     });
   });
 
   describe('deleteUser', () => {
     beforeEach(() => {
-      prismaMock.$transaction.mockImplementation(async (fn: any) => fn(prismaMock));
+      prismaMock.$transaction.mockImplementation(async (fn: any) =>
+        fn(prismaMock),
+      );
       prismaMock.conversation.findMany.mockResolvedValue([] as any);
     });
 
@@ -179,7 +197,9 @@ describe('InstitutionService', () => {
       expect(prismaMock.aIUsage.deleteMany).toHaveBeenCalledWith({
         where: { user_id: 'user-id-1' },
       });
-      expect(prismaMock.user.delete).toHaveBeenCalledWith({ where: { id: 'user-id-1' } });
+      expect(prismaMock.user.delete).toHaveBeenCalledWith({
+        where: { id: 'user-id-1' },
+      });
     });
 
     it('should delete conversations with messages and summaries before deleting student', async () => {
@@ -215,9 +235,9 @@ describe('InstitutionService', () => {
     it('should throw NotFoundException when user does not belong to institution', async () => {
       prismaMock.user.findFirst.mockResolvedValue(null);
 
-      await expect(service.deleteUser('inst-id-1', 'user-outro')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.deleteUser('inst-id-1', 'user-outro'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

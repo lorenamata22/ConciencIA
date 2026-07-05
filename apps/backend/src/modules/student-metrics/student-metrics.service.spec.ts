@@ -57,7 +57,10 @@ describe('StudentMetricsService', () => {
       expect(prismaMock.studentMetrics.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            student_id_subject_id: { student_id: studentId, subject_id: subjectId },
+            student_id_subject_id: {
+              student_id: studentId,
+              subject_id: subjectId,
+            },
           }),
         }),
       );
@@ -84,7 +87,9 @@ describe('StudentMetricsService', () => {
 
   describe('findByStudent', () => {
     it('should return all subject metrics for a student', async () => {
-      prismaMock.studentMetrics.findMany.mockResolvedValue([mockMetrics] as any);
+      prismaMock.studentMetrics.findMany.mockResolvedValue([
+        mockMetrics,
+      ] as any);
 
       const result = await service.findByStudent(studentId);
 

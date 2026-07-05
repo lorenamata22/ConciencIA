@@ -1,4 +1,12 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsInt, IsPositive, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsInt,
+  IsPositive,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class CreateInstitutionDto {
   @IsString()
