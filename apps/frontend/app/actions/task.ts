@@ -44,7 +44,8 @@ export async function createTaskAction(
   const parsed = validate(formData);
   if (!parsed.ok) return { error: parsed.error };
 
-  const result = await createTask(parsed);
+  const { name, subjectId, classIds } = parsed;
+  const result = await createTask({ name, subjectId, classIds });
   if (result.statusCode !== 201 || !result.data) {
     return { error: result.message ?? 'No se pudo registrar la tarea. Inténtalo de nuevo.' };
   }
@@ -60,7 +61,8 @@ export async function updateTaskAction(
   const parsed = validate(formData);
   if (!parsed.ok) return { error: parsed.error };
 
-  const result = await updateTask(taskId, parsed);
+  const { name, subjectId, classIds } = parsed;
+  const result = await updateTask(taskId, { name, subjectId, classIds });
   if (result.statusCode !== 200 || !result.data) {
     return { error: result.message ?? 'No se pudo actualizar la tarea. Inténtalo de nuevo.' };
   }

@@ -1,9 +1,28 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTeacherClassDetail } from '@/lib/api/teacher';
-import { getStudentTaskGrades } from '@/lib/api/task';
+import { getStudentTaskGrades, type StudentTaskGrade } from '@/lib/api/task';
 import { getInitials } from '@/lib/utils/user';
 import { TeacherTasksTable } from './teacher-tasks-table';
+
+// Tareas entregues ("3/4") e nota media da matéria, a partir das notas do aluno
+function summarizeSubjectGrades(subjectId: string, grades: StudentTaskGrade[]) {
+  const subjectGrades = grades.filter((g) => g.subjectId === subjectId);
+  const completed = subjectGrades.filter((g) => g.grade !== null);
+
+  const average = completed.length
+    ? Number(
+        (
+          completed.reduce((sum, g) => sum + Number(g.grade), 0) / completed.length
+        ).toFixed(1),
+      )
+    : null;
+
+  return {
+    tasksDelivered: subjectGrades.length ? `${completed.length}/${subjectGrades.length}` : '—',
+    averageGrade: average,
+  };
+}
 
 export default async function TeacherStudentDetailPage({
   params,
@@ -50,30 +69,33 @@ export default async function TeacherStudentDetailPage({
             No hay materias asignadas en esta clase.
           </div>
         )}
-        {detail.subjects.map((subject) => (
-          <div key={subject.id} className="rounded-2xl card-shadow p-6 flex items-center gap-5">
-            <div className="w-1.5 self-stretch bg-primary" />
-            <div className="flex-1 min-w-0">
-              <p className="text-base font-medium text-brand-brown truncate">
-                {subject.name} - {detail.class.name}
-              </p>
-              <p className="text-sm text-brand-label mt-0.5">
-                {detail.class.course.name} · {detail.class.year} &nbsp;&nbsp; {detail.class.period}
-              </p>
-            </div>
-            <div className="flex items-center gap-10 shrink-0">
-              <div className="text-center">
-                <p className="text-2xl text-brand">—</p>
-                <p className="text-xs text-brand-label mt-1">Tareas entregues</p>
+        {detail.subjects.map((subject) => {
+          const { tasksDelivered, averageGrade } = summarizeSubjectGrades(subject.id, grades);
+          return (
+            <div key={subject.id} className="rounded-2xl card-shadow p-6 flex items-center gap-5">
+              <div className="w-1.5 self-stretch bg-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-medium text-brand-brown truncate">
+                  {subject.name} - {detail.class.name}
+                </p>
+                <p className="text-sm text-brand-label mt-0.5">
+                  {detail.class.course.name} · {detail.class.year} &nbsp;&nbsp; {detail.class.period}
+                </p>
               </div>
-              <div className="divider" />
-              <div className="text-center">
-                <p className="text-2xl text-brand">—</p>
-                <p className="text-xs text-brand-label mt-1">Nota media</p>
+              <div className="flex items-center gap-10 shrink-0">
+                <div className="text-center">
+                  <p className="text-2xl text-brand">{tasksDelivered}</p>
+                  <p className="text-xs text-brand-label mt-1">Tareas entregues</p>
+                </div>
+                <div className="divider" />
+                <div className="text-center">
+                  <p className="text-2xl text-brand">{averageGrade?.toFixed(1) ?? '—'}</p>
+                  <p className="text-xs text-brand-label mt-1">Nota media</p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <TeacherTasksTable

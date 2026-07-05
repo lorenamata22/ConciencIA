@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import type { StudentTaskGrade } from '@/lib/api/task';
 
 // Exibe sempre com uma casa decimal (ex. "9.5"); "—" quando ainda não há nota
@@ -27,6 +28,7 @@ export function TeacherTasksTable({
   classId: string;
   studentId: string;
 }) {
+  const router = useRouter();
   const [grades, setGrades] = useState(initialGrades);
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
   const [edit, setEdit] = useState<EditState>({ phase: 'idle' });
@@ -74,6 +76,9 @@ export function TeacherTasksTable({
           prev.map((g) => (g.taskId === taskId ? { ...g, grade: saved } : g)),
         );
         setEdit({ phase: 'idle' });
+        // Recarrega os dados do servidor para atualizar os cards de nota média
+        // (matéria e aluno), que são calculados na página (Server Component)
+        router.refresh();
       } catch {
         setEdit({
           phase: 'error',

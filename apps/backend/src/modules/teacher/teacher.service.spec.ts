@@ -297,6 +297,7 @@ describe('TeacherService', () => {
         { class_id: 'class-3' },
       ] as any);
       prismaMock.studentClass.findMany.mockResolvedValue([]);
+      prismaMock.taskGrade.findMany.mockResolvedValue([]);
 
       const result = await service.getDashboardStats('user-id-1');
 
@@ -315,6 +316,7 @@ describe('TeacherService', () => {
         { student_id: 'student-1' },
         { student_id: 'student-2' },
       ] as any);
+      prismaMock.taskGrade.findMany.mockResolvedValue([]);
 
       const result = await service.getDashboardStats('user-id-1');
 
@@ -332,6 +334,7 @@ describe('TeacherService', () => {
         id: 'teacher-id-1',
       } as any);
       prismaMock.teacherClass.findMany.mockResolvedValue([]);
+      prismaMock.taskGrade.findMany.mockResolvedValue([]);
 
       const result = await service.getDashboardStats('user-id-1');
 
@@ -340,15 +343,41 @@ describe('TeacherService', () => {
       expect(prismaMock.studentClass.findMany).not.toHaveBeenCalled();
     });
 
-    it('should always return averageGrade as null (grades module not implemented yet)', async () => {
+    it('should return averageGrade as null when the teacher has no grades registered yet', async () => {
       prismaMock.teacher.findUnique.mockResolvedValue({
         id: 'teacher-id-1',
       } as any);
       prismaMock.teacherClass.findMany.mockResolvedValue([]);
+      prismaMock.taskGrade.findMany.mockResolvedValue([]);
 
       const result = await service.getDashboardStats('user-id-1');
 
       expect(result.averageGrade).toBeNull();
+    });
+
+    it('should compute averageGrade as the average of each student average grade across all classes/tasks of the teacher', async () => {
+      prismaMock.teacher.findUnique.mockResolvedValue({
+        id: 'teacher-id-1',
+      } as any);
+      prismaMock.teacherClass.findMany.mockResolvedValue([
+        { class_id: 'class-1' },
+      ] as any);
+      prismaMock.studentClass.findMany.mockResolvedValue([]);
+      // student-1 fica com média 8.0 (8 e 8), student-2 fica com média 6.0 — média geral: 7.0
+      prismaMock.taskGrade.findMany.mockResolvedValue([
+        { student_id: 'student-1', value: '8.0' },
+        { student_id: 'student-1', value: '8.0' },
+        { student_id: 'student-2', value: '6.0' },
+      ] as any);
+
+      const result = await service.getDashboardStats('user-id-1');
+
+      expect(result.averageGrade).toBe(7);
+      expect(prismaMock.taskGrade.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { task: { teacher_id: 'teacher-id-1' } },
+        }),
+      );
     });
   });
 
@@ -450,7 +479,7 @@ describe('TeacherService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('should return subjects taught by the teacher in the class with student count and null grade placeholders', async () => {
+    it('should return subjects taught by the teacher in the class with student count and null averageGrade when there are no grades yet', async () => {
       prismaMock.teacher.findUnique.mockResolvedValue({
         id: 'teacher-id-1',
       } as any);
@@ -464,6 +493,7 @@ describe('TeacherService', () => {
         { subject: { id: 'subject-1', name: 'Matemáticas' } },
       ] as any);
       prismaMock.studentClass.findMany.mockResolvedValue([]);
+      prismaMock.taskGrade.findMany.mockResolvedValue([]);
 
       const result = await service.getClassDetail('user-id-1', 'class-1');
 
@@ -486,7 +516,7 @@ describe('TeacherService', () => {
       );
     });
 
-    it('should return students in the class with null grade/attendance/status placeholders', async () => {
+    it('should return students in the class with null averageGrade and attendance/status placeholders when there are no grades yet', async () => {
       prismaMock.teacher.findUnique.mockResolvedValue({
         id: 'teacher-id-1',
       } as any);
@@ -505,6 +535,7 @@ describe('TeacherService', () => {
           },
         },
       ] as any);
+      prismaMock.taskGrade.findMany.mockResolvedValue([]);
 
       const result = await service.getClassDetail('user-id-1', 'class-1');
 
@@ -518,6 +549,71 @@ describe('TeacherService', () => {
           status: null,
         },
       ]);
+    });
+
+    it('should compute subject averageGrade as the average of each student average grade in that subject', async () => {
+      prismaMock.teacher.findUnique.mockResolvedValue({
+        id: 'teacher-id-1',
+      } as any);
+      prismaMock.teacherClass.findUnique.mockResolvedValue({
+        teacher_id: 'teacher-id-1',
+        class_id: 'class-1',
+      } as any);
+      prismaMock.class.findUnique.mockResolvedValue(mockClass as any);
+      prismaMock.studentClass.count.mockResolvedValue(2);
+      prismaMock.teacherSubject.findMany.mockResolvedValue([
+        { subject: { id: 'subject-1', name: 'Matemáticas' } },
+      ] as any);
+      prismaMock.studentClass.findMany.mockResolvedValue([]);
+      // student-1 fica com média 8.0 (8 e 8), student-2 fica com média 6.0 — média da turma: 7.0
+      prismaMock.taskGrade.findMany.mockResolvedValue([
+        { student_id: 'student-1', value: '8.0', task: { subject_id: 'subject-1' } },
+        { student_id: 'student-1', value: '8.0', task: { subject_id: 'subject-1' } },
+        { student_id: 'student-2', value: '6.0', task: { subject_id: 'subject-1' } },
+      ] as any);
+
+      const result = await service.getClassDetail('user-id-1', 'class-1');
+
+      expect(result.subjects[0].averageGrade).toBe(7);
+    });
+
+    it('should compute each student averageGrade across all subjects taught by the teacher in the class', async () => {
+      prismaMock.teacher.findUnique.mockResolvedValue({
+        id: 'teacher-id-1',
+      } as any);
+      prismaMock.teacherClass.findUnique.mockResolvedValue({
+        teacher_id: 'teacher-id-1',
+        class_id: 'class-1',
+      } as any);
+      prismaMock.class.findUnique.mockResolvedValue(mockClass as any);
+      prismaMock.studentClass.count.mockResolvedValue(1);
+      prismaMock.teacherSubject.findMany.mockResolvedValue([]);
+      prismaMock.studentClass.findMany.mockResolvedValue([
+        {
+          student: {
+            id: 'student-1',
+            user: { id: 'user-2', name: 'María López', email: 'maria@escola.com' },
+          },
+        },
+      ] as any);
+      prismaMock.taskGrade.findMany.mockResolvedValue([
+        { student_id: 'student-1', value: '9.0', task: { subject_id: 'subject-1' } },
+        { student_id: 'student-1', value: '7.0', task: { subject_id: 'subject-2' } },
+      ] as any);
+
+      const result = await service.getClassDetail('user-id-1', 'class-1');
+
+      expect(result.students[0].averageGrade).toBe(8);
+      expect(prismaMock.taskGrade.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            task: {
+              teacher_id: 'teacher-id-1',
+              taskClasses: { some: { class_id: 'class-1' } },
+            },
+          },
+        }),
+      );
     });
   });
 
