@@ -5,3 +5,4 @@ dist/
 
 /generated/prisma
 *.tsbuildinfo
+coverage/
