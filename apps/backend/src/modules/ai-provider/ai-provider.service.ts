@@ -30,10 +30,9 @@ export class AIProviderService {
             'GEMINI_MODEL',
             'gemini-2.5-pro',
           ),
-          voyageApiKey: this.config.get<string>('VOYAGE_API_KEY', ''),
-          voyageEmbeddingModel: this.config.get<string>(
-            'VOYAGE_EMBEDDING_MODEL',
-            'voyage-3',
+          geminiEmbeddingModel: this.config.get<string>(
+            'GEMINI_EMBEDDING_MODEL',
+            'gemini-embedding-001',
           ),
         });
         return this.provider;

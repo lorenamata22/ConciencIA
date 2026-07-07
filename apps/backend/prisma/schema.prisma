@@ -262,7 +262,7 @@ model Embedding {
   id               String                       @id @default(uuid())
   file_id          String
   chunk_text       String
-  // Dimensão 1024 — Voyage AI
+  // Dimensão 1024 — gemini-embedding-001 com outputDimensionality: 1024 (MRL)
   // Índice HNSW criado via migration raw SQL — não remover:
   // CREATE INDEX ON embedding USING hnsw (embedding_vector vector_cosine_ops);
   embedding_vector Unsupported("vector(1024)")?

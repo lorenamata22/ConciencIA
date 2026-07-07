@@ -7,13 +7,12 @@ describe('AIProviderService', () => {
   let service: AIProviderService;
   let configService: jest.Mocked<ConfigService>;
 
-  // Config padrão para o provider Google Gemini + Voyage (embeddings)
+  // Config padrão para o provider Google Gemini (texto + embeddings)
   const googleEnv: Record<string, string> = {
     AI_PROVIDER: 'google',
     GEMINI_API_KEY: 'test-gemini-key',
     GEMINI_MODEL: 'gemini-2.5-pro',
-    VOYAGE_API_KEY: 'test-voyage-key',
-    VOYAGE_EMBEDDING_MODEL: 'voyage-3',
+    GEMINI_EMBEDDING_MODEL: 'gemini-embedding-001',
   };
 
   beforeEach(async () => {

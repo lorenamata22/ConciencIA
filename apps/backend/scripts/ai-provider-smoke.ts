@@ -1,11 +1,11 @@
 // Smoke test MANUAL da camada AIProvider — roda contra as APIs reais.
 // Não faz parte da suíte Jest nem do CI (fica fora de src/, testRegex não pega).
 //
-// Uso (com GEMINI_API_KEY e VOYAGE_API_KEY preenchidos no apps/backend/.env):
+// Uso (com GEMINI_API_KEY preenchida no apps/backend/.env):
 //   cd apps/backend && npx ts-node scripts/ai-provider-smoke.ts
 //
-// Objetivo: confirmar que o formato real das respostas (Gemini e Voyage)
-// bate com o que os mocks dos testes unitários assumem.
+// Objetivo: confirmar que o formato real das respostas do Gemini
+// (texto e embeddings) bate com o que os mocks dos testes unitários assumem.
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -25,18 +25,15 @@ function loadEnv(): Record<string, string> {
 async function main() {
   const env = loadEnv();
 
-  for (const key of ['GEMINI_API_KEY', 'VOYAGE_API_KEY']) {
-    if (!env[key]) {
-      console.error(`✗ ${key} não está preenchida em apps/backend/.env`);
-      process.exit(1);
-    }
+  if (!env.GEMINI_API_KEY) {
+    console.error('✗ GEMINI_API_KEY não está preenchida em apps/backend/.env');
+    process.exit(1);
   }
 
   const adapter = new GeminiAdapter({
     geminiApiKey: env.GEMINI_API_KEY,
     geminiModel: env.GEMINI_MODEL || 'gemini-2.5-pro',
-    voyageApiKey: env.VOYAGE_API_KEY,
-    voyageEmbeddingModel: env.VOYAGE_EMBEDDING_MODEL || 'voyage-3',
+    geminiEmbeddingModel: env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001',
   });
 
   console.log(`Provider: ${adapter.getProviderName()}\n`);

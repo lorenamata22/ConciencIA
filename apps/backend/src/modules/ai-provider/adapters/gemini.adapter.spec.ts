@@ -3,32 +3,29 @@ import { GeminiAdapter } from './gemini.adapter';
 // Mocks do SDK @google/genai — nunca chamar a API real em testes
 const mockGenerateContent = jest.fn();
 const mockGenerateContentStream = jest.fn();
+const mockEmbedContent = jest.fn();
 
 jest.mock('@google/genai', () => ({
   GoogleGenAI: jest.fn().mockImplementation(() => ({
     models: {
       generateContent: mockGenerateContent,
       generateContentStream: mockGenerateContentStream,
+      embedContent: mockEmbedContent,
     },
   })),
 }));
 
 describe('GeminiAdapter', () => {
   let adapter: GeminiAdapter;
-  let fetchMock: jest.Mock;
 
   const config = {
     geminiApiKey: 'test-gemini-key',
     geminiModel: 'gemini-2.5-pro',
-    voyageApiKey: 'test-voyage-key',
-    voyageEmbeddingModel: 'voyage-3',
+    geminiEmbeddingModel: 'gemini-embedding-001',
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Mock do fetch global usado para a REST API da Voyage
-    fetchMock = jest.fn();
-    global.fetch = fetchMock as unknown as typeof fetch;
     adapter = new GeminiAdapter(config);
   });
 
@@ -136,49 +133,84 @@ describe('GeminiAdapter', () => {
   });
 
   describe('embed', () => {
-    it('should call Voyage API with the whole batch and return one vector per text', async () => {
-      const vectorA = new Array(1024).fill(0.1);
-      const vectorB = new Array(1024).fill(0.2);
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: jest.fn().mockResolvedValue({
-          data: [{ embedding: vectorA }, { embedding: vectorB }],
-        }),
+    it('should call embedContent once with the whole batch, dimension 1024, and return vectors in order', async () => {
+      // Vetores com direções distintas (a normalização preserva a direção)
+      const vectorA = [1, ...new Array<number>(1023).fill(0)];
+      const vectorB = [0, 1, ...new Array<number>(1022).fill(0)];
+      mockEmbedContent.mockResolvedValue({
+        embeddings: [{ values: vectorA }, { values: vectorB }],
       });
 
       const result = await adapter.embed(['Chunk um', 'Chunk dois']);
 
-      // A API da Voyage aceita lote nativamente — uma única chamada com o array
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(fetchMock).toHaveBeenCalledWith(
-        'https://api.voyageai.com/v1/embeddings',
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            Authorization: 'Bearer test-voyage-key',
-            'Content-Type': 'application/json',
-          }) as Record<string, unknown>,
-          body: JSON.stringify({
-            input: ['Chunk um', 'Chunk dois'],
-            model: 'voyage-3',
-          }),
-        }),
-      );
-      expect(result).toEqual({
-        vectors: [vectorA, vectorB],
-        model: 'voyage-3',
+      // Lote nativo do SDK — uma única chamada com o array inteiro
+      expect(mockEmbedContent).toHaveBeenCalledTimes(1);
+      expect(mockEmbedContent).toHaveBeenCalledWith({
+        model: 'gemini-embedding-001',
+        contents: ['Chunk um', 'Chunk dois'],
+        // Dimensão acoplada à coluna vector(1024) do schema
+        config: { outputDimensionality: 1024 },
       });
+      expect(result.model).toBe('gemini-embedding-001');
+      expect(result.vectors).toHaveLength(2);
       expect(result.vectors[0]).toHaveLength(1024);
+      // Ordem preservada: cada vetor mantém sua direção original
+      expect(result.vectors[0][0]).toBeCloseTo(1, 6);
+      expect(result.vectors[1][1]).toBeCloseTo(1, 6);
     });
 
-    it('should throw when Voyage API responds with an error status', async () => {
-      fetchMock.mockResolvedValue({
-        ok: false,
-        status: 401,
-        text: jest.fn().mockResolvedValue('{"detail":"invalid api key"}'),
-      });
+    it('should return L2-normalized vectors (truncated Gemini embeddings are not normalized)', async () => {
+      // Vetor com norma 5 (3-4-5) preenchido com zeros até 1024 dims
+      const vector = [3, 4, ...new Array<number>(1022).fill(0)];
+      mockEmbedContent.mockResolvedValue({ embeddings: [{ values: vector }] });
 
-      await expect(adapter.embed(['Texto'])).rejects.toThrow(/401/);
+      const result = await adapter.embed(['Texto']);
+
+      const norm = Math.hypot(...result.vectors[0]);
+      expect(norm).toBeCloseTo(1, 6);
+      expect(result.vectors[0][0]).toBeCloseTo(0.6, 6);
+      expect(result.vectors[0][1]).toBeCloseTo(0.8, 6);
+    });
+
+    it('should split batches larger than 100 texts (Gemini API limit) preserving order', async () => {
+      // 250 textos → 3 chamadas: 100 + 100 + 50
+      const texts = Array.from({ length: 250 }, (_, i) => `Chunk ${i}`);
+      mockEmbedContent.mockImplementation(
+        ({ contents }: { contents: string[] }) =>
+          Promise.resolve({
+            embeddings: contents.map((text) => ({
+              // Primeiro componente carrega o índice do texto p/ verificar a ordem
+              values: [Number(text.split(' ')[1]), ...new Array<number>(1023).fill(1)],
+            })),
+          }),
+      );
+
+      const result = await adapter.embed(texts);
+
+      expect(mockEmbedContent).toHaveBeenCalledTimes(3);
+      const sizes = mockEmbedContent.mock.calls.map(
+        (call) => (call[0] as { contents: string[] }).contents.length,
+      );
+      expect(sizes).toEqual([100, 100, 50]);
+      expect(result.vectors).toHaveLength(250);
+      // Ordem global preservada entre os sub-lotes: componente 0 cresce com o índice
+      // (vetores normalizados — compara a proporção, não o valor absoluto)
+      expect(result.vectors[0][0]).toBeCloseTo(0, 6);
+      expect(result.vectors[249][0]).toBeGreaterThan(result.vectors[100][0]);
+    });
+
+    it('should throw when the SDK returns fewer vectors than texts', async () => {
+      mockEmbedContent.mockResolvedValue({ embeddings: [] });
+
+      await expect(adapter.embed(['Texto um', 'Texto dois'])).rejects.toThrow(
+        /2/,
+      );
+    });
+
+    it('should propagate SDK errors', async () => {
+      mockEmbedContent.mockRejectedValue(new Error('quota exceeded'));
+
+      await expect(adapter.embed(['Texto'])).rejects.toThrow('quota exceeded');
     });
   });
 });

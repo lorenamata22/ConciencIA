@@ -6,19 +6,33 @@ import {
   AIProvider,
 } from '../ai-provider.interface';
 
-const VOYAGE_EMBEDDINGS_URL = 'https://api.voyageai.com/v1/embeddings';
+// Dimensão fixada em 1024 — acoplada à coluna vector(1024) do schema e ao
+// índice HNSW. O gemini-embedding-001 tem 3072 dims por padrão, mas suporta
+// truncamento MRL via outputDimensionality. Mudar a dimensão exige migration
+// nova na coluna e no índice + re-ingestão de todos os arquivos.
+const EMBEDDING_DIMENSIONS = 1024;
+
+// Limite da API do Gemini: BatchEmbedContentsRequest aceita no máximo
+// 100 textos por requisição — lotes maiores retornam 400 INVALID_ARGUMENT
+const EMBED_BATCH_LIMIT = 98;
+
+// Embeddings truncados (<3072 dims) do Gemini NÃO vêm normalizados — só a
+// saída completa de 3072 vem. A busca usa cosseno (invariante à escala),
+// mas normalizar é a recomendação da Google e protege uso futuro de dot product.
+function normalizeL2(vector: number[]): number[] {
+  const norm = Math.hypot(...vector);
+  if (norm === 0) return vector;
+  return vector.map((value) => value / norm);
+}
 
 export interface GeminiAdapterConfig {
   geminiApiKey: string;
   geminiModel: string;
-  voyageApiKey: string;
-  voyageEmbeddingModel: string;
+  geminiEmbeddingModel: string;
 }
 
-// Adapter do Google Gemini para complete()/stream().
-// Embeddings continuam na Voyage AI via REST (ver comentário em embed()) —
-// a interface AIProvider é o único ponto de entrada; nenhum outro módulo
-// deve saber que existe uma chamada separada para a Voyage.
+// Adapter do Google Gemini — complete()/stream() e embeddings, tudo via
+// @google/genai com a mesma GEMINI_API_KEY.
 export class GeminiAdapter implements AIProvider {
   private readonly client: GoogleGenAI;
 
@@ -50,40 +64,32 @@ export class GeminiAdapter implements AIProvider {
     }
   }
 
-  // Embeddings via Voyage AI: o schema fixa embedding_vector como vector(1024),
-  // acoplado à dimensão do modelo voyage-3 (VOYAGE_EMBEDDING_MODEL). Se o modelo
-  // de embedding mudar de dimensão um dia, é preciso migration nova na coluna e
-  // no índice HNSW. Essa dependência é exclusiva dos embeddings/Voyage —
-  // independente do provider de texto (Gemini ou qualquer outro).
-  // Lote nativo: a Voyage aceita um array de textos em uma única requisição
-  // e devolve um embedding por item, na mesma ordem.
+  // Lote nativo: embedContent aceita um array de textos em uma única
+  // requisição e devolve um embedding por item, na mesma ordem.
+  // Documentos grandes (>100 chunks) são divididos em sub-lotes sequenciais
+  // por causa do limite da API — a ordem global é preservada.
   async embed(texts: string[]): Promise<AIEmbeddingResult> {
-    const response = await fetch(VOYAGE_EMBEDDINGS_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.config.voyageApiKey}`,
-      },
-      body: JSON.stringify({
-        input: texts,
-        model: this.config.voyageEmbeddingModel,
-      }),
-    });
+    const vectors: number[][] = [];
 
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(
-        `Voyage AI embeddings request failed (${response.status}): ${body}`,
-      );
+    for (let start = 0; start < texts.length; start += EMBED_BATCH_LIMIT) {
+      const batch = texts.slice(start, start + EMBED_BATCH_LIMIT);
+      const response = await this.client.models.embedContent({
+        model: this.config.geminiEmbeddingModel,
+        contents: batch,
+        config: { outputDimensionality: EMBEDDING_DIMENSIONS },
+      });
+
+      const embeddings = response.embeddings ?? [];
+      if (embeddings.length !== batch.length) {
+        throw new Error(
+          `Gemini embeddings returned ${embeddings.length} vectors for ${batch.length} texts`,
+        );
+      }
+
+      vectors.push(...embeddings.map((item) => normalizeL2(item.values ?? [])));
     }
 
-    const result = (await response.json()) as {
-      data: { embedding: number[] }[];
-    };
-    return {
-      vectors: result.data.map((item) => item.embedding),
-      model: this.config.voyageEmbeddingModel,
-    };
+    return { vectors, model: this.config.geminiEmbeddingModel };
   }
 
   // Converte AICompletionOptions para o formato do @google/genai

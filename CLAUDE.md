@@ -398,7 +398,7 @@ Professor seleciona Turma > Matéria > Módulo > Tópico(s)
 
 ### Campo embedding_vector
 ```prisma
-// Dimensão 1024 — Voyage AI
+// Dimensão 1024 — gemini-embedding-001 com outputDimensionality: 1024 (MRL)
 embedding_vector Unsupported("vector(1024)")
 ```
 
@@ -458,9 +458,8 @@ ANTHROPIC_API_KEY=
 AI_PROVIDER=anthropic
 ANTHROPIC_MODEL=claude-sonnet-4-20250514
 
-# ── Voyage AI (embeddings) ──────────────────────────
-VOYAGE_API_KEY=
-VOYAGE_EMBEDDING_MODEL=voyage-3
+# ── Google Gemini (embeddings) ──────────────────────
+GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 
 # ── Storage ─────────────────────────────────────────
 STORAGE_PROVIDER=s3                  # s3 | azure
@@ -666,7 +665,7 @@ services:
       POSTGRES_DB: conciencia_test
 ```
 
-**Regra:** nunca chamar APIs externas reais (Anthropic, Voyage AI, S3) no CI — sempre usar mocks.
+**Regra:** nunca chamar APIs externas reais (Anthropic, Gemini, S3) no CI — sempre usar mocks.
 
 ---
 

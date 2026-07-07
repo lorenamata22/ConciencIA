@@ -20,5 +20,8 @@ export const CHUNK_OVERLAP_CHARS = 400;
 export const DEFAULT_TOP_K = 5;
 
 // Distância de cosseno máxima para um chunk contar como contexto relevante —
-// o top-K do pgvector sempre retorna K vizinhos, mesmo irrelevantes
-export const MAX_COSINE_DISTANCE = 0.65;
+// o top-K do pgvector sempre retorna K vizinhos, mesmo irrelevantes.
+// Calibrado empiricamente para gemini-embedding-001 (2026-07-06): perguntas
+// relevantes ficaram em ~0.22–0.27 e irrelevantes em ~0.49+; o corte em 0.45
+// separa os dois grupos. Reavaliar se o modelo de embedding mudar.
+export const MAX_COSINE_DISTANCE = 0.45;
