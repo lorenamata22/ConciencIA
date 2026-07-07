@@ -23,14 +23,15 @@ export interface AICompletionResult {
   responseTokens: number;
 }
 
+// Resultado do embedding em lote: um vetor por texto de entrada, na mesma ordem
 export interface AIEmbeddingResult {
-  vector: number[];
+  vectors: number[][];
   model: string;
 }
 
 export interface AIProvider {
   complete(options: AICompletionOptions): Promise<AICompletionResult>;
   stream(options: AICompletionOptions): AsyncIterable<string>;
-  embed(text: string): Promise<AIEmbeddingResult>;
+  embed(texts: string[]): Promise<AIEmbeddingResult>;
   getProviderName(): string;
 }

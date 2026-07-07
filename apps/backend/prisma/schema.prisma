@@ -245,6 +245,8 @@ model File {
   size             Int
   is_ai_context    Boolean         @default(false)
   ingestion_status IngestionStatus @default(pending)
+  // Motivo da falha de ingestão (extensão não suportada, sem texto extraível, erro de infra)
+  ingestion_error  String?
   created_at       DateTime        @default(now())
 
   institution Institution @relation(fields: [institution_id], references: [id])

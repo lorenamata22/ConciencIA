@@ -52,8 +52,8 @@ export class AIProviderService {
     return this.getProvider().stream(options);
   }
 
-  embed(text: string): Promise<AIEmbeddingResult> {
-    return this.getProvider().embed(text);
+  embed(texts: string[]): Promise<AIEmbeddingResult> {
+    return this.getProvider().embed(texts);
   }
 
   getProviderName(): string {

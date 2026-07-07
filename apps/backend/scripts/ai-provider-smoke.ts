@@ -71,15 +71,23 @@ async function main() {
   console.log(`\ntexto: ${streamed}`);
   if (!streamed) throw new Error('stream() não produziu chunks');
 
-  // 3. embed()
+  // 3. embed() — lote com mais de um texto para validar a ordem dos vetores
   console.log('\n── embed() ──');
-  const embedding = await adapter.embed('Texto de teste para embedding.');
+  const embedding = await adapter.embed([
+    'Texto de teste para embedding.',
+    'Segundo texto do lote.',
+  ]);
   console.log(
-    `model: ${embedding.model} | dimensão: ${embedding.vector.length}`,
+    `model: ${embedding.model} | vetores: ${embedding.vectors.length} | dimensão: ${embedding.vectors[0].length}`,
   );
-  if (embedding.vector.length !== 1024) {
+  if (embedding.vectors.length !== 2) {
     throw new Error(
-      `embed() retornou dimensão ${embedding.vector.length} — o schema espera vector(1024)`,
+      `embed() retornou ${embedding.vectors.length} vetores para 2 textos — lote quebrado`,
+    );
+  }
+  if (embedding.vectors[0].length !== 1024) {
+    throw new Error(
+      `embed() retornou dimensão ${embedding.vectors[0].length} — o schema espera vector(1024)`,
     );
   }
 

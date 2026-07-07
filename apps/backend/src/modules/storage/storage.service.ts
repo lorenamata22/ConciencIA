@@ -61,6 +61,32 @@ export class StorageService {
     this.deleteLocal(url.replace(prefix, ''));
   }
 
+  // Lê os bytes do arquivo a partir da URL persistida em File.url —
+  // usado pelo pipeline RAG para extração de texto (funciona com bucket privado,
+  // diferente de um fetch direto na URL)
+  async downloadByUrl(url: string): Promise<Buffer> {
+    if (this.provider === 's3') {
+      const publicUrl = this.config.get<string>('AWS_S3_PUBLIC_URL', '');
+      const bucket = this.config.get<string>('AWS_S3_BUCKET', '');
+      const response = await this.s3Client!.send(
+        new GetObjectCommand({
+          Bucket: bucket,
+          Key: url.replace(`${publicUrl}/`, ''),
+        }),
+      );
+      const bytes = await response.Body!.transformToByteArray();
+      return Buffer.from(bytes);
+    }
+    const port = this.config.get<string>('BACKEND_PORT', '3001');
+    const prefix = `http://localhost:${port}/uploads/`;
+    const fullPath = path.join(
+      process.cwd(),
+      'uploads',
+      url.replace(prefix, ''),
+    );
+    return fs.readFileSync(fullPath);
+  }
+
   private async uploadLocal(
     storagePath: string,
     buffer: Buffer,

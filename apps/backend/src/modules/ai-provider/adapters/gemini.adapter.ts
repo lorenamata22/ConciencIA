@@ -55,7 +55,9 @@ export class GeminiAdapter implements AIProvider {
   // de embedding mudar de dimensão um dia, é preciso migration nova na coluna e
   // no índice HNSW. Essa dependência é exclusiva dos embeddings/Voyage —
   // independente do provider de texto (Gemini ou qualquer outro).
-  async embed(text: string): Promise<AIEmbeddingResult> {
+  // Lote nativo: a Voyage aceita um array de textos em uma única requisição
+  // e devolve um embedding por item, na mesma ordem.
+  async embed(texts: string[]): Promise<AIEmbeddingResult> {
     const response = await fetch(VOYAGE_EMBEDDINGS_URL, {
       method: 'POST',
       headers: {
@@ -63,7 +65,7 @@ export class GeminiAdapter implements AIProvider {
         Authorization: `Bearer ${this.config.voyageApiKey}`,
       },
       body: JSON.stringify({
-        input: [text],
+        input: texts,
         model: this.config.voyageEmbeddingModel,
       }),
     });
@@ -79,7 +81,7 @@ export class GeminiAdapter implements AIProvider {
       data: { embedding: number[] }[];
     };
     return {
-      vector: result.data[0].embedding,
+      vectors: result.data.map((item) => item.embedding),
       model: this.config.voyageEmbeddingModel,
     };
   }

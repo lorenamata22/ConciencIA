@@ -117,19 +117,21 @@ describe('AIProviderService', () => {
 
   describe('embed', () => {
     it('should delegate embed call to the active provider', async () => {
-      const text = 'Texto para embedding';
+      const texts = ['Texto para embedding', 'Outro texto'];
       const expectedResult = {
-        vector: new Array(1024).fill(0),
+        vectors: [new Array(1024).fill(0), new Array(1024).fill(0)],
         model: 'voyage-3',
       };
+      const embedMock = jest.fn().mockResolvedValue(expectedResult);
       jest.spyOn(service, 'getProvider').mockReturnValue({
         complete: jest.fn(),
         stream: jest.fn(),
-        embed: jest.fn().mockResolvedValue(expectedResult),
+        embed: embedMock,
         getProviderName: jest.fn(),
       });
 
-      const result = await service.embed(text);
+      const result = await service.embed(texts);
+      expect(embedMock).toHaveBeenCalledWith(texts);
       expect(result).toEqual(expectedResult);
     });
   });

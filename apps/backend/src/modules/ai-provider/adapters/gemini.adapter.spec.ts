@@ -136,15 +136,20 @@ describe('GeminiAdapter', () => {
   });
 
   describe('embed', () => {
-    it('should call Voyage API and return embedding vector with model name', async () => {
-      const vector = new Array(1024).fill(0.1);
+    it('should call Voyage API with the whole batch and return one vector per text', async () => {
+      const vectorA = new Array(1024).fill(0.1);
+      const vectorB = new Array(1024).fill(0.2);
       fetchMock.mockResolvedValue({
         ok: true,
-        json: jest.fn().mockResolvedValue({ data: [{ embedding: vector }] }),
+        json: jest.fn().mockResolvedValue({
+          data: [{ embedding: vectorA }, { embedding: vectorB }],
+        }),
       });
 
-      const result = await adapter.embed('Texto para embedding');
+      const result = await adapter.embed(['Chunk um', 'Chunk dois']);
 
+      // A API da Voyage aceita lote nativamente — uma única chamada com o array
+      expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(fetchMock).toHaveBeenCalledWith(
         'https://api.voyageai.com/v1/embeddings',
         expect.objectContaining({
@@ -154,13 +159,16 @@ describe('GeminiAdapter', () => {
             'Content-Type': 'application/json',
           }) as Record<string, unknown>,
           body: JSON.stringify({
-            input: ['Texto para embedding'],
+            input: ['Chunk um', 'Chunk dois'],
             model: 'voyage-3',
           }),
         }),
       );
-      expect(result).toEqual({ vector, model: 'voyage-3' });
-      expect(result.vector).toHaveLength(1024);
+      expect(result).toEqual({
+        vectors: [vectorA, vectorB],
+        model: 'voyage-3',
+      });
+      expect(result.vectors[0]).toHaveLength(1024);
     });
 
     it('should throw when Voyage API responds with an error status', async () => {
@@ -170,7 +178,7 @@ describe('GeminiAdapter', () => {
         text: jest.fn().mockResolvedValue('{"detail":"invalid api key"}'),
       });
 
-      await expect(adapter.embed('Texto')).rejects.toThrow(/401/);
+      await expect(adapter.embed(['Texto'])).rejects.toThrow(/401/);
     });
   });
 });
