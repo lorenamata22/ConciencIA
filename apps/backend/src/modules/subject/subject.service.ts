@@ -36,6 +36,75 @@ export class SubjectService {
     });
   }
 
+  // Matérias do aluno via cadeia Subject → Course → Class → StudentClass →
+  // Student.user_id — aluno só enxerga matérias dos cursos das turmas dele
+  async findAllByStudent(userId: string) {
+    return this.prisma.subject.findMany({
+      where: {
+        course: {
+          classes: {
+            some: {
+              studentClasses: {
+                some: { student: { user_id: userId } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        course: { select: { id: true, name: true } },
+      },
+    });
+  }
+
+  // Leitura mínima para o Modo Exame: módulos servem apenas como agrupadores
+  // visuais no dropdown; somente os tópicos são selecionáveis.
+  async getExamOutlineForStudent(userId: string, subjectId: string) {
+    const subject = await this.prisma.subject.findFirst({
+      where: {
+        id: subjectId,
+        course: {
+          classes: {
+            some: {
+              studentClasses: {
+                some: { student: { user_id: userId } },
+              },
+            },
+          },
+        },
+      },
+      select: {
+        modules: {
+          orderBy: { order: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            topics: {
+              orderBy: { order: 'asc' },
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                order: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!subject) {
+      throw new NotFoundException(
+        'Asignatura no encontrada o no disponible para el alumno',
+      );
+    }
+
+    return subject.modules;
+  }
+
   async create(institutionId: string, dto: CreateSubjectDto) {
     const course = await this.prisma.course.findFirst({
       where: { id: dto.courseId, institution_id: institutionId },

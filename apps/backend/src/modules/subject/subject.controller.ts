@@ -32,6 +32,23 @@ export class SubjectController {
     return this.subjectService.findAllByInstitution(user.institutionId);
   }
 
+  // Matérias do aluno logado (seleção no Chat) — @Roles no método
+  // sobrescreve o class-level (getAllAndOverride no RolesGuard)
+  @Get('student/me')
+  @Roles('student')
+  findAllForStudent(@CurrentUser() user: JwtPayload) {
+    return this.subjectService.findAllByStudent(user.userId);
+  }
+
+  @Get('student/me/:id/exam-outline')
+  @Roles('student')
+  getExamOutline(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') subjectId: string,
+  ) {
+    return this.subjectService.getExamOutlineForStudent(user.userId, subjectId);
+  }
+
   @Post('me')
   @Roles('institution')
   create(@CurrentUser() user: JwtPayload, @Body() dto: CreateSubjectDto) {

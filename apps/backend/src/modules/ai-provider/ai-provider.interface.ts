@@ -10,11 +10,20 @@ export interface AIMessage {
   content: string;
 }
 
+// Uso real de tokens reportado pelo provider ao final de um stream —
+// stream() continua AsyncIterable<string>, o callback é o canal lateral
+// para o consumidor registrar AI_Usage com números reais em vez de estimativa.
+export interface AIStreamUsage {
+  promptTokens: number;
+  responseTokens: number;
+}
+
 export interface AICompletionOptions {
   system?: string;
   messages: AIMessage[];
   maxTokens?: number;
   temperature?: number;
+  onUsage?: (usage: AIStreamUsage) => void;
 }
 
 export interface AICompletionResult {
@@ -29,9 +38,40 @@ export interface AIEmbeddingResult {
   model: string;
 }
 
+// Chamada com structured output: o provider força a resposta a aderir ao
+// JSON Schema informado (gerado por z.toJSONSchema no consumidor). O adapter
+// garante forma sintática (JSON válido); validação semântica é do consumidor.
+export interface AIStructuredOptions extends AICompletionOptions {
+  jsonSchema: Record<string, unknown>;
+}
+
+export interface AIStructuredResult<T = unknown> {
+  data: T;
+  promptTokens: number;
+  responseTokens: number;
+}
+
+// Resposta truncada por maxTokens quebra o structured output (JSON incompleto)
+// — erro dedicado para o consumidor tratar sem tentar o parse.
+export class AIResponseTruncatedError extends Error {
+  constructor(
+    readonly promptTokens = 0,
+    readonly responseTokens = 0,
+    message = 'AI response truncated by max tokens limit',
+  ) {
+    super(message);
+    this.name = 'AIResponseTruncatedError';
+  }
+}
+
 export interface AIProvider {
   complete(options: AICompletionOptions): Promise<AICompletionResult>;
+  completeStructured<T = unknown>(
+    options: AIStructuredOptions,
+  ): Promise<AIStructuredResult<T>>;
   stream(options: AICompletionOptions): AsyncIterable<string>;
   embed(texts: string[]): Promise<AIEmbeddingResult>;
   getProviderName(): string;
+  // Opcional: nome do modelo de texto ativo — usado no registro de AI_Usage
+  getModelName?(): string;
 }

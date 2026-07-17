@@ -115,6 +115,67 @@ describe('AIUsageService', () => {
     });
   });
 
+  // Gate de tokens (CLAUDE.md §11): User.ai_token_limit tem prioridade;
+  // senão vale o da Institution; sem limite em nenhum → liberado
+  describe('hasAvailableTokens', () => {
+    it('should return true when neither user nor institution has a token limit', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({
+        ai_token_limit: null,
+      } as any);
+      prismaMock.institution.findUnique.mockResolvedValue({
+        ai_token_limit: null,
+      } as any);
+
+      await expect(
+        service.hasAvailableTokens(userId, institutionId),
+      ).resolves.toBe(true);
+    });
+
+    it('should prioritize user limit over institution limit', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({
+        ai_token_limit: 1000,
+      } as any);
+      prismaMock.aIUsage.aggregate.mockResolvedValue({
+        _sum: { prompt_tokens: 400, response_tokens: 100 },
+      } as any);
+
+      await expect(
+        service.hasAvailableTokens(userId, institutionId),
+      ).resolves.toBe(true);
+      // Com limite no usuário, o limite da instituição nem é consultado
+      expect(prismaMock.institution.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('should return false when user usage reaches the user limit', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({
+        ai_token_limit: 500,
+      } as any);
+      prismaMock.aIUsage.aggregate.mockResolvedValue({
+        _sum: { prompt_tokens: 400, response_tokens: 100 },
+      } as any);
+
+      await expect(
+        service.hasAvailableTokens(userId, institutionId),
+      ).resolves.toBe(false);
+    });
+
+    it('should fall back to institution limit when user has no limit', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({
+        ai_token_limit: null,
+      } as any);
+      prismaMock.institution.findUnique.mockResolvedValue({
+        ai_token_limit: 1000,
+      } as any);
+      prismaMock.aIUsage.aggregate.mockResolvedValue({
+        _sum: { prompt_tokens: 900, response_tokens: 100 },
+      } as any);
+
+      await expect(
+        service.hasAvailableTokens(userId, institutionId),
+      ).resolves.toBe(false);
+    });
+  });
+
   describe('findByInstitution', () => {
     it('should return usage records filtered by institution_id', async () => {
       prismaMock.aIUsage.findMany.mockResolvedValue([mockUsage] as any);

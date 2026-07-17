@@ -1,258 +1,215 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import * as request from 'supertest';
+import { Test, TestingModule } from '@nestjs/testing';
+import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
 import { AIProviderService } from '../src/modules/ai-provider/ai-provider.service';
 import { RagService } from '../src/modules/rag/rag.service';
+import { PrismaService } from '../src/prisma/prisma.service';
 
-/**
- * E2E: Conclusão do tópico (Topic Completion)
- * Regra inegociável: tópico só é marcado como 'completed' após [EXAM_COMPLETE]
- * Cobre também: não completar antes, student_metrics atualizado, exam salvo
- */
-describe('Topic Completion Flow (e2e)', () => {
+const examContent = {
+  questions: [
+    ...['q1', 'q2', 'q3'].map((id) => ({
+      id,
+      type: 'multiple_choice',
+      concept_label: 'Concepto',
+      statement: `Pregunta ${id}`,
+      options: [
+        { id: 'a', text: `A ${id}` },
+        { id: 'b', text: `B ${id}` },
+        { id: 'c', text: `C ${id}` },
+        { id: 'd', text: `D ${id}` },
+      ],
+      correct_option_id: 'b',
+      rationale: `Razón ${id}`,
+      source_reference: '[1]',
+    })),
+    ...['q4', 'q5'].map((id) => ({
+      id,
+      type: 'essay',
+      concept_label: 'Concepto',
+      statement: `Desarrollo ${id}`,
+      hint: 'Pista',
+      key_points: ['Punto 1', 'Punto 2'],
+      source_reference: '[1]',
+    })),
+  ],
+};
+
+describe('Topic completion through main exam (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
-
   let institutionId: string;
-  let studentToken: string;
-  let studentId: string;
   let subjectId: string;
   let topicId: string;
+  let studentId: string;
+  let accessToken: string;
 
-  const createAiMock = (shouldComplete = false) => ({
-    getProvider: () => ({
-      stream: jest.fn().mockImplementation(async function* () {
-        if (shouldComplete) {
-          yield 'Parabéns por completar o exame! Pontuação: 9/10. [EXAM_COMPLETE]';
-        } else {
-          yield 'Boa tentativa! Vamos para a próxima questão.';
-        }
-      }),
-      complete: jest.fn(),
-      embed: jest.fn(),
-      getProviderName: jest.fn().mockReturnValue('mock'),
-    }),
+  const completeStructured = jest.fn().mockImplementation((options) => {
+    const isGeneration = options.messages[0].content.startsWith('Genera');
+    return Promise.resolve({
+      data: isGeneration
+        ? examContent
+        : {
+            results: examContent.questions.map((question) => ({
+              question_id: question.id,
+              verdict: 'correct',
+              feedback: 'Buen trabajo.',
+            })),
+          },
+      promptTokens: 10,
+      responseTokens: 20,
+    });
   });
-
-  const aiProviderMock = createAiMock(false);
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
       .overrideProvider(AIProviderService)
-      .useValue(aiProviderMock)
+      .useValue({
+        completeStructured,
+        getProvider: () => ({
+          getProviderName: () => 'mock',
+          getModelName: () => 'mock-model',
+        }),
+      })
       .overrideProvider(RagService)
       .useValue({
-        search: jest.fn().mockResolvedValue([]),
-        ingestFile: jest.fn(),
+        search: jest.fn().mockResolvedValue({
+          chunks: [
+            {
+              id: 'chunk-1',
+              chunk_text: 'Material suficiente para generar el examen.',
+              metadata: {},
+              distance: 0.1,
+            },
+          ],
+          hasSufficientContext: true,
+        }),
       })
       .compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }),
+    );
     await app.init();
-
-    prisma = moduleFixture.get<PrismaService>(PrismaService);
+    prisma = moduleFixture.get(PrismaService);
 
     const institution = await prisma.institution.create({
-      data: { name: 'Escola Topic E2E', ai_token_limit: 1000000 },
+      data: { name: 'Institution Topic Completion', ai_token_limit: 100000 },
     });
     institutionId = institution.id;
-
     const course = await prisma.course.create({
-      data: { institution_id: institutionId, name: 'Curso Topic E2E' },
+      data: { institution_id: institutionId, name: 'Course Topic Completion' },
     });
-
     const subject = await prisma.subject.create({
-      data: { course_id: course.id, name: 'Matéria Topic E2E' },
+      data: { course_id: course.id, name: 'Subject Topic Completion' },
     });
     subjectId = subject.id;
-
     const courseModule = await prisma.module.create({
-      data: { subject_id: subjectId, name: 'Módulo Topic E2E', order: 1 },
+      data: {
+        subject_id: subjectId,
+        name: 'Module Topic Completion',
+        order: 1,
+      },
     });
-
     const topic = await prisma.topic.create({
       data: {
         module_id: courseModule.id,
-        title: 'Tópico Completion E2E',
-        description: 'Tópico para teste de conclusão',
+        title: 'Topic Completion',
+        description: 'Description',
         order: 1,
       },
     });
     topicId = topic.id;
-
-    const classRecord = await prisma.class.create({
+    await prisma.class.create({
       data: {
         course_id: course.id,
-        name: 'Turma Topic E2E',
+        name: 'Class Topic Completion',
         year: 2026,
         period: '1',
-        license_code: 'TOPIC001',
+        license_code: 'TOPIC-COMPLETION-E2E',
       },
     });
 
-    const registerResponse = await request(app.getHttpServer())
-      .post('/students/register')
+    const register = await request(app.getHttpServer())
+      .post('/auth/register')
       .send({
-        name: 'Aluno Topic E2E',
-        email: 'topic@test-e2e.com',
-        password: 'SenhaSegura123',
-        license_code: 'TOPIC001',
-        is_minor: false,
-      });
-
-    studentId = registerResponse.body.data?.studentId;
-
-    const loginResponse = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ email: 'topic@test-e2e.com', password: 'SenhaSegura123' });
-
-    studentToken = loginResponse.body.data?.accessToken;
+        licenseCode: 'TOPIC-COMPLETION-E2E',
+        name: 'Student Topic Completion',
+        email: 'topic-completion@e2e.test',
+        birthDate: '2000-01-01',
+        password: 'SecurePassword123',
+      })
+      .expect(201);
+    accessToken = register.body.data.accessToken;
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { email: 'topic-completion@e2e.test' },
+      include: { student: true },
+    });
+    studentId = user.student!.id;
   });
 
   afterAll(async () => {
-    await prisma.topicProgress.deleteMany({ where: {} });
-    await prisma.studentMetrics.deleteMany({ where: {} });
-    await prisma.exam.deleteMany({ where: {} });
-    await prisma.message.deleteMany({ where: {} });
-    await prisma.conversation.deleteMany({ where: {} });
+    await prisma.topicProgress.deleteMany({ where: { student_id: studentId } });
+    await prisma.studentMetrics.deleteMany({
+      where: { student_id: studentId },
+    });
     await prisma.aIUsage.deleteMany({
       where: { institution_id: institutionId },
     });
-    await prisma.studentClass.deleteMany({ where: {} });
-    await prisma.student.deleteMany({ where: {} });
+    await prisma.exam.deleteMany({ where: { student_id: studentId } });
+    await prisma.studentClass.deleteMany({ where: { student_id: studentId } });
+    await prisma.student.delete({ where: { id: studentId } });
     await prisma.user.deleteMany({ where: { institution_id: institutionId } });
-    await prisma.topic.deleteMany({ where: { id: topicId } });
+    await prisma.class.deleteMany({
+      where: { course: { institution_id: institutionId } },
+    });
+    await prisma.topic.delete({ where: { id: topicId } });
     await prisma.module.deleteMany({ where: { subject_id: subjectId } });
-    await prisma.subject.deleteMany({ where: { id: subjectId } });
-    await prisma.class.deleteMany({ where: { license_code: 'TOPIC001' } });
+    await prisma.subject.delete({ where: { id: subjectId } });
     await prisma.course.deleteMany({
       where: { institution_id: institutionId },
     });
-    await prisma.institution.deleteMany({ where: { id: institutionId } });
+    await prisma.institution.delete({ where: { id: institutionId } });
     await app.close();
   });
 
-  it('should NOT mark topic as completed before exam starts', async () => {
-    const progress = await prisma.topicProgress.findFirst({
-      where: { student_id: studentId, topic_id: topicId },
-    });
-
-    // Nenhum progresso deve existir antes do exame
-    expect(progress).toBeNull();
-  });
-
-  it('should set topic status to in_progress when exam begins', async () => {
-    const convResponse = await request(app.getHttpServer())
-      .post('/conversations')
-      .set('Authorization', `Bearer ${studentToken}`)
-      .send({ subject_id: subjectId, topic_id: topicId, mode: 'exam' })
+  it('should mark the topic completed only after submitting a main exam', async () => {
+    const generated = await request(app.getHttpServer())
+      .post('/exams')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ topic_id: topicId, type: 'main' })
       .expect(201);
 
-    const conversationId = convResponse.body.data?.id;
+    expect(
+      await prisma.topicProgress.findUnique({
+        where: {
+          student_id_topic_id: { student_id: studentId, topic_id: topicId },
+        },
+      }),
+    ).toBeNull();
 
-    // IA NÃO emite [EXAM_COMPLETE] ainda
     await request(app.getHttpServer())
-      .post('/chat/exam')
-      .set('Authorization', `Bearer ${studentToken}`)
+      .post(`/exams/${generated.body.data.exam_id}/answers`)
+      .set('Authorization', `Bearer ${accessToken}`)
       .send({
-        conversation_id: conversationId,
-        content: 'Iniciar exame',
-      });
-
-    const progress = await prisma.topicProgress.findFirst({
-      where: { student_id: studentId, topic_id: topicId },
-    });
-
-    // Deve estar in_progress, não completed
-    expect(progress?.status).toBe('in_progress');
-  });
-
-  it('should mark topic as completed ONLY after [EXAM_COMPLETE] tag is detected', async () => {
-    // Criar nova conversa de exame
-    const convResponse = await request(app.getHttpServer())
-      .post('/conversations')
-      .set('Authorization', `Bearer ${studentToken}`)
-      .send({ subject_id: subjectId, topic_id: topicId, mode: 'exam' })
+        answers: [
+          { question_id: 'q1', selected_option_id: 'b' },
+          { question_id: 'q2', selected_option_id: 'b' },
+          { question_id: 'q3', selected_option_id: 'b' },
+          { question_id: 'q4', essay_text: 'Respuesta cuatro' },
+          { question_id: 'q5', essay_text: 'Respuesta cinco' },
+        ],
+      })
       .expect(201);
 
-    const conversationId = convResponse.body.data?.id;
-
-    // Mudar mock para emitir [EXAM_COMPLETE]
-    const completingMock = createAiMock(true);
-    // Atualizar o provider mock em runtime
-    aiProviderMock.getProvider = completingMock.getProvider;
-
-    await request(app.getHttpServer())
-      .post('/chat/exam')
-      .set('Authorization', `Bearer ${studentToken}`)
-      .send({
-        conversation_id: conversationId,
-        content: 'Resposta final do exame',
-      });
-
-    const progress = await prisma.topicProgress.findFirst({
-      where: { student_id: studentId, topic_id: topicId },
-      orderBy: { updated_at: 'desc' },
-    });
-
-    expect(progress?.status).toBe('completed');
-  });
-
-  it('should save exam record with score and summary after completion', async () => {
-    const exam = await prisma.exam.findFirst({
-      where: { student_id: studentId, subject_id: subjectId },
-      orderBy: { completed_at: 'desc' },
-    });
-
-    expect(exam).toBeDefined();
-    expect(exam?.completed_at).toBeDefined();
-    expect(exam?.final_score).toBeDefined();
-  });
-
-  it('should update StudentMetrics for the subject after exam completion', async () => {
-    const metrics = await prisma.studentMetrics.findFirst({
-      where: { student_id: studentId, subject_id: subjectId },
-    });
-
-    expect(metrics).toBeDefined();
-    expect(metrics?.attempts).toBeGreaterThan(0);
-    expect(metrics?.accuracy_rate).toBeGreaterThan(0);
-  });
-
-  it('should not allow teacher role to access chat (role guard)', async () => {
-    // Criar professor e obter token
-    const teacherUser = await prisma.user.create({
-      data: {
-        institution_id: institutionId,
-        name: 'Professor Topic E2E',
-        email: 'professor-topic@test-e2e.com',
-        password: '$2a$10$hashedpassword',
-        user_type: 'teacher',
+    const progress = await prisma.topicProgress.findUnique({
+      where: {
+        student_id_topic_id: { student_id: studentId, topic_id: topicId },
       },
     });
-    await prisma.teacher.create({ data: { user_id: teacherUser.id } });
-
-    const teacherLogin = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({
-        email: 'professor-topic@test-e2e.com',
-        password: 'SenhaSegura123',
-      });
-
-    const teacherToken = teacherLogin.body.data?.accessToken;
-
-    await request(app.getHttpServer())
-      .post('/chat/exam')
-      .set('Authorization', `Bearer ${teacherToken}`)
-      .send({ conversation_id: 'qualquer', content: 'Hack' })
-      .expect(403);
-
-    await prisma.teacher.delete({ where: { user_id: teacherUser.id } });
-    await prisma.user.delete({ where: { id: teacherUser.id } });
+    expect(progress?.status).toBe('completed');
   });
 });

@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Classes `prose` — formatação das respostas Markdown da IA no chat */
+@plugin "@tailwindcss/typography";
 
 @theme {
   /* Paleta ConciencIA */

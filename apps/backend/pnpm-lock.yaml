@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@anthropic-ai/sdk':
         specifier: ^0.87.0
-        version: 0.87.0
+        version: 0.87.0(zod@4.4.3)
       '@aws-sdk/client-s3':
         specifier: ^3.1079.0
         version: 3.1079.0
@@ -89,6 +89,9 @@ importers:
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.2.0
@@ -4133,6 +4136,9 @@ packages:
   zlibjs@0.3.1:
     resolution: {integrity: sha512-+J9RrgTKOmlxFSDHo0pI1xM6BLVUv+o0ZT9ANtCxGkjIVCCUdx9alUF8Gm+dGLKbkkkidWIHFDZHDMpfITt4+w==}
 
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
+
 snapshots:
 
   '@angular-devkit/core@19.2.23(chokidar@4.0.3)':
@@ -4189,9 +4195,11 @@ snapshots:
     transitivePeerDependencies:
       - chokidar
 
-  '@anthropic-ai/sdk@0.87.0':
+  '@anthropic-ai/sdk@0.87.0(zod@4.4.3)':
     dependencies:
       json-schema-to-ts: 3.1.1
+    optionalDependencies:
+      zod: 4.4.3
 
   '@aws-sdk/checksums@3.1000.12':
     dependencies:
@@ -8556,3 +8564,5 @@ snapshots:
       graphmatch: 1.1.1
 
   zlibjs@0.3.1: {}
+
+  zod@4.4.3: {}

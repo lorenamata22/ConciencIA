@@ -88,6 +88,63 @@ describe('ConversationService', () => {
     });
   });
 
+  describe('resumeOrCreateByUser', () => {
+    const userId = 'user-id-1';
+
+    it('should resume the latest conversation for the subject when one exists', async () => {
+      prismaMock.student.findUnique.mockResolvedValue({
+        id: studentId,
+        user_id: userId,
+      } as any);
+      prismaMock.conversation.findFirst.mockResolvedValue(
+        mockConversation as any,
+      );
+
+      const result = await service.resumeOrCreateByUser(userId, 'subject-id-1');
+
+      expect(result.id).toBe('conv-id-1');
+      expect(prismaMock.conversation.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            student_id: studentId,
+            subject_id: 'subject-id-1',
+          }),
+          orderBy: expect.objectContaining({ created_at: 'desc' }),
+        }),
+      );
+      expect(prismaMock.conversation.create).not.toHaveBeenCalled();
+    });
+
+    it('should create a new conversation when none exists for the subject', async () => {
+      prismaMock.student.findUnique.mockResolvedValue({
+        id: studentId,
+        user_id: userId,
+      } as any);
+      prismaMock.conversation.findFirst.mockResolvedValue(null);
+      prismaMock.conversation.create.mockResolvedValue(mockConversation as any);
+
+      const result = await service.resumeOrCreateByUser(userId, 'subject-id-1');
+
+      expect(result.id).toBe('conv-id-1');
+      expect(prismaMock.conversation.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            student_id: studentId,
+            subject_id: 'subject-id-1',
+          }),
+        }),
+      );
+    });
+
+    it('should throw NotFoundException when user has no student record', async () => {
+      prismaMock.student.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.resumeOrCreateByUser(userId, 'subject-id-1'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
   describe('findByStudentAndSubject', () => {
     it('should return conversations filtered by student and subject', async () => {
       prismaMock.conversation.findMany.mockResolvedValue([

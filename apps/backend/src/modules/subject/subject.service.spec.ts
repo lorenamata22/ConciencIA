@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { SubjectService } from './subject.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { createPrismaMock, PrismaMock } from '../../prisma/prisma-mock';
 
 describe('SubjectService', () => {
@@ -21,10 +22,17 @@ describe('SubjectService', () => {
   beforeEach(async () => {
     prismaMock = createPrismaMock();
 
+    const storageMock = {
+      upload: jest.fn(),
+      deleteByUrl: jest.fn(),
+      downloadByUrl: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SubjectService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: StorageService, useValue: storageMock },
       ],
     }).compile();
 
@@ -91,6 +99,43 @@ describe('SubjectService', () => {
       await expect(
         service.findOne('id-inexistente', institutionId),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findAllByStudent', () => {
+    it('should return subjects of the courses of the classes the student belongs to', async () => {
+      prismaMock.subject.findMany.mockResolvedValue([mockSubject] as any);
+
+      const result = await service.findAllByStudent('user-id-1');
+
+      expect(result).toHaveLength(1);
+      // Cadeia: Subject → Course → Class → StudentClass → Student.user_id
+      expect(prismaMock.subject.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            course: expect.objectContaining({
+              classes: expect.objectContaining({
+                some: expect.objectContaining({
+                  studentClasses: expect.objectContaining({
+                    some: expect.objectContaining({
+                      student: expect.objectContaining({
+                        user_id: 'user-id-1',
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('should return empty array when student has no classes', async () => {
+      prismaMock.subject.findMany.mockResolvedValue([] as any);
+
+      const result = await service.findAllByStudent('user-id-1');
+      expect(result).toEqual([]);
     });
   });
 

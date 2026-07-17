@@ -44,6 +44,14 @@ enum AudienceType {
   student
 }
 
+// main = exame do tópico (marca Topic_Progress e atualiza accuracy_rate);
+// retry = "Practicar puntos débiles" — questões novas sobre os erros do exame
+// de origem; não marca o tópico nem atualiza accuracy_rate
+enum ExamType {
+  main
+  retry
+}
+
 // ─── Entidades principais ───────────────────────────────────���────────────────
 
 model Institution {
@@ -322,18 +330,22 @@ model Exam {
   id                   String    @id @default(uuid())
   student_id           String
   subject_id           String
-  topic_id             String?
+  topic_id             String
+  exam_type            ExamType  @default(main)
   exam_content_json    Json      @default("{}")
   student_answers_json Json      @default("{}")
   final_score          Float?
   execution_time       Int?
   result_summary       String?
+  created_at           DateTime  @default(now())
   completed_at         DateTime?
 
   student Student @relation(fields: [student_id], references: [id])
   subject Subject @relation(fields: [subject_id], references: [id])
-  topic   Topic?  @relation(fields: [topic_id], references: [id])
+  topic   Topic   @relation(fields: [topic_id], references: [id])
 
+  // AlertModule conta tentativas por tópico a partir destas linhas
+  @@index([student_id, topic_id])
   @@map("exam")
 }
 

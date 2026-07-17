@@ -1,4 +1,5 @@
 import { GeminiAdapter } from './gemini.adapter';
+import { AIResponseTruncatedError } from '../ai-provider.interface';
 
 // Mocks do SDK @google/genai — nunca chamar a API real em testes
 const mockGenerateContent = jest.fn();
@@ -109,6 +110,89 @@ describe('GeminiAdapter', () => {
     });
   });
 
+  describe('completeStructured', () => {
+    const jsonSchema = {
+      type: 'object',
+      properties: { answer: { type: 'string' } },
+      required: ['answer'],
+    };
+
+    it('should send responseMimeType application/json and the responseJsonSchema to the SDK', async () => {
+      mockGenerateContent.mockResolvedValue({
+        text: '{"answer":"ok"}',
+        usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1 },
+      });
+
+      await adapter.completeStructured({
+        messages: [{ role: 'user', content: 'Pergunta' }],
+        maxTokens: 4000,
+        jsonSchema,
+      });
+
+      expect(mockGenerateContent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            responseMimeType: 'application/json',
+            responseJsonSchema: jsonSchema,
+            maxOutputTokens: 4000,
+          }) as Record<string, unknown>,
+        }),
+      );
+    });
+
+    it('should parse the JSON response and return data with token counts', async () => {
+      mockGenerateContent.mockResolvedValue({
+        text: '{"answer":"42"}',
+        usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 },
+      });
+
+      const result = await adapter.completeStructured<{ answer: string }>({
+        messages: [{ role: 'user', content: 'Pergunta' }],
+        jsonSchema,
+      });
+
+      expect(result).toEqual({
+        data: { answer: '42' },
+        promptTokens: 10,
+        responseTokens: 5,
+      });
+    });
+
+    it('should throw AIResponseTruncatedError when finishReason is MAX_TOKENS', async () => {
+      // Truncamento quebra o structured output — o JSON sai incompleto
+      mockGenerateContent.mockResolvedValue({
+        text: '{"answer":"resposta cort',
+        candidates: [{ finishReason: 'MAX_TOKENS' }],
+        usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 4000 },
+      });
+
+      const completion = adapter.completeStructured({
+        messages: [{ role: 'user', content: 'Pergunta' }],
+        jsonSchema,
+      });
+      await expect(completion).rejects.toBeInstanceOf(AIResponseTruncatedError);
+      await expect(completion).rejects.toMatchObject({
+        name: 'AIResponseTruncatedError',
+        promptTokens: 10,
+        responseTokens: 4000,
+      });
+    });
+
+    it('should throw when the response is not valid JSON', async () => {
+      mockGenerateContent.mockResolvedValue({
+        text: 'não sou JSON',
+        usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1 },
+      });
+
+      await expect(
+        adapter.completeStructured({
+          messages: [{ role: 'user', content: 'Pergunta' }],
+          jsonSchema,
+        }),
+      ).rejects.toThrow();
+    });
+  });
+
   describe('stream', () => {
     it('should yield streamed chunks in order', async () => {
       // Gerador assíncrono simulando os chunks retornados pelo SDK
@@ -129,6 +213,56 @@ describe('GeminiAdapter', () => {
       }
 
       expect(chunks).toEqual(['Olá', ' mundo', '!']);
+    });
+
+    it('should call onUsage with real token counts from the final chunk usageMetadata', async () => {
+      mockGenerateContentStream.mockResolvedValue(
+        (async function* () {
+          await Promise.resolve();
+          yield { text: 'Olá' };
+          yield {
+            text: ' mundo',
+            usageMetadata: { promptTokenCount: 42, candidatesTokenCount: 17 },
+          };
+        })(),
+      );
+
+      const onUsage = jest.fn();
+      const chunks: string[] = [];
+      for await (const chunk of adapter.stream({
+        messages: [{ role: 'user', content: 'Olá' }],
+        onUsage,
+      })) {
+        chunks.push(chunk);
+      }
+
+      expect(chunks).toEqual(['Olá', ' mundo']);
+      expect(onUsage).toHaveBeenCalledTimes(1);
+      expect(onUsage).toHaveBeenCalledWith({
+        promptTokens: 42,
+        responseTokens: 17,
+      });
+    });
+
+    it('should not call onUsage when the stream carries no usageMetadata', async () => {
+      mockGenerateContentStream.mockResolvedValue(
+        (async function* () {
+          await Promise.resolve();
+          yield { text: 'sem metadata' };
+        })(),
+      );
+
+      const onUsage = jest.fn();
+      const received: string[] = [];
+      for await (const chunk of adapter.stream({
+        messages: [{ role: 'user', content: 'Olá' }],
+        onUsage,
+      })) {
+        received.push(chunk);
+      }
+
+      expect(received).toEqual(['sem metadata']);
+      expect(onUsage).not.toHaveBeenCalled();
     });
   });
 
@@ -180,7 +314,10 @@ describe('GeminiAdapter', () => {
           Promise.resolve({
             embeddings: contents.map((text) => ({
               // Primeiro componente carrega o índice do texto p/ verificar a ordem
-              values: [Number(text.split(' ')[1]), ...new Array<number>(1023).fill(1)],
+              values: [
+                Number(text.split(' ')[1]),
+                ...new Array<number>(1023).fill(1),
+              ],
             })),
           }),
       );
@@ -191,7 +328,8 @@ describe('GeminiAdapter', () => {
       const sizes = mockEmbedContent.mock.calls.map(
         (call) => (call[0] as { contents: string[] }).contents.length,
       );
-      expect(sizes).toEqual([100, 100, 50]);
+      // EMBED_BATCH_LIMIT = 98 → 250 textos = 98 + 98 + 54
+      expect(sizes).toEqual([98, 98, 54]);
       expect(result.vectors).toHaveLength(250);
       // Ordem global preservada entre os sub-lotes: componente 0 cresce com o índice
       // (vetores normalizados — compara a proporção, não o valor absoluto)

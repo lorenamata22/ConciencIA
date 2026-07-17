@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { AIProviderService } from './ai-provider.service';
 import { AICompletionOptions } from './ai-provider.interface';
+import { createAIProviderMock } from './ai-provider.mock';
 
 describe('AIProviderService', () => {
   let service: AIProviderService;
@@ -64,13 +65,37 @@ describe('AIProviderService', () => {
         responseTokens: 5,
       };
       jest.spyOn(service, 'getProvider').mockReturnValue({
+        ...createAIProviderMock(),
         complete: jest.fn().mockResolvedValue(expectedResult),
-        stream: jest.fn(),
-        embed: jest.fn(),
-        getProviderName: jest.fn(),
       });
 
       const result = await service.complete(options);
+      expect(result).toEqual(expectedResult);
+    });
+  });
+
+  describe('completeStructured', () => {
+    it('should delegate completeStructured call to the active provider', async () => {
+      const expectedResult = {
+        data: { answer: '42' },
+        promptTokens: 10,
+        responseTokens: 5,
+      };
+      const completeStructuredMock = jest
+        .fn()
+        .mockResolvedValue(expectedResult);
+      jest.spyOn(service, 'getProvider').mockReturnValue({
+        ...createAIProviderMock(),
+        completeStructured: completeStructuredMock,
+      });
+
+      const options = {
+        messages: [{ role: 'user' as const, content: 'Pergunta' }],
+        jsonSchema: { type: 'object' },
+      };
+      const result = await service.completeStructured(options);
+
+      expect(completeStructuredMock).toHaveBeenCalledWith(options);
       expect(result).toEqual(expectedResult);
     });
   });
@@ -87,10 +112,8 @@ describe('AIProviderService', () => {
         yield ' mundo';
       }
       jest.spyOn(service, 'getProvider').mockReturnValue({
-        complete: jest.fn(),
+        ...createAIProviderMock(),
         stream: jest.fn().mockReturnValue(fakeStream()),
-        embed: jest.fn(),
-        getProviderName: jest.fn(),
       });
 
       const chunks: string[] = [];
@@ -104,9 +127,7 @@ describe('AIProviderService', () => {
   describe('getProviderName', () => {
     it('should delegate getProviderName call to the active provider', () => {
       jest.spyOn(service, 'getProvider').mockReturnValue({
-        complete: jest.fn(),
-        stream: jest.fn(),
-        embed: jest.fn(),
+        ...createAIProviderMock(),
         getProviderName: jest.fn().mockReturnValue('google'),
       });
 
@@ -123,10 +144,8 @@ describe('AIProviderService', () => {
       };
       const embedMock = jest.fn().mockResolvedValue(expectedResult);
       jest.spyOn(service, 'getProvider').mockReturnValue({
-        complete: jest.fn(),
-        stream: jest.fn(),
+        ...createAIProviderMock(),
         embed: embedMock,
-        getProviderName: jest.fn(),
       });
 
       const result = await service.embed(texts);

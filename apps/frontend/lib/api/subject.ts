@@ -43,6 +43,22 @@ export async function getMySubjects(): Promise<SubjectItem[]> {
   }
 }
 
+// Matérias do aluno logado (rota @Roles('student') no backend) — usada na
+// seleção de matéria do Chat
+export async function getStudentSubjects(): Promise<SubjectItem[]> {
+  try {
+    const res = await fetch(`${API_URL}/subjects/student/me`, {
+      headers: await authHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json.data as SubjectItem[]) ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getMyCourses(): Promise<CourseOption[]> {
   try {
     const res = await fetch(`${API_URL}/courses/me`, {

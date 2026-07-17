@@ -136,7 +136,7 @@ Embedding           id, file_id, chunk_text, embedding_vector, metadata, created
 Conversation        id, student_id, subject_id, topic_id?, created_at
 Message             id, conversation_id, role, content, prompt_tokens, response_tokens, created_at
 Conversation_Summary  id, conversation_id, summary, created_at
-Exam                id, student_id, subject_id, topic_id?, exam_content_json, student_answers_json, final_score, execution_time, result_summary, completed_at
+Exam                id, student_id, subject_id, topic_id, exam_type, exam_content_json, student_answers_json, final_score, execution_time, result_summary, created_at, completed_at
 Student_Metrics     id, student_id, subject_id, accuracy_rate, total_time, attempts
 Alert               id, student_id, institution_id, alert_type, level, description, resolved, created_at
 AI_Usage            id, institution_id, user_id, conversation_id?, provider, model, prompt_tokens, response_tokens, cost, created_at
@@ -163,6 +163,8 @@ document_type:          main | supplementary
 status (progress):      pending | in_progress | completed
 role (message):         user | assistant
 ingestion_status:       pending | processing | completed | failed
+exam_type:              main | retry
+verdict (exam answer):  correct | incorrect
 grade_type:             number | letter | concept | percentage | pass_fail
 activity_type:          (livre — definido pelo professor)
 ```
@@ -188,12 +190,13 @@ O RAG é o módulo mais crítico do sistema. Siga estas regras sem exceção:
 6. **Re-indexação**: ao substituir um arquivo com `is_ai_context = true`, **deletar todos os embeddings antigos** antes de processar a nova versão. Feito de forma assíncrona via BullMQ.
 
 7. **Fallback**: se não houver contexto suficiente, a IA responde com conhecimento geral e **deve sinalizar isso ao usuário** na resposta.
+   - **Exceção — Modo Exame**: não há fallback. Gerar prova sem material do professor quebraria a regra de prioridade de contexto. Retrieval vazio → `422 "Tópico sem material de contexto para gerar exame"`.
 
 ---
 
-## 8. Chat — Modos e Composição do Prompt
+## 8. Chat (Modo Estudo) e Modo Exame
 
-O componente de chat é **único** para ambos os modos. O comportamento muda via prompt de sistema e via histórico enviado.
+O chat conversacional existe **apenas no Modo Estudo**. O Modo Exame **não é conversacional**: é um quiz estruturado, sem chat, sem histórico e sem `Conversation`/`Message` — não crie essas relações. Chat durante o exame está **desabilitado no MVP**.
 
 ### Modo Estudo
 
@@ -209,29 +212,27 @@ O aluno seleciona a matéria antes de iniciar. A cada mensagem, o prompt contém
 
 - Histórico **resumido** (não completo)
 - Persistência isolada por matéria
+- Usa **streaming** — SSE (Server-Sent Events) no NestJS
 
-### Modo Exame
+### Modo Exame (quiz estruturado)
 
-O aluno seleciona a matéria **e o tópico** antes de iniciar. O prompt contém:
+O aluno seleciona a matéria **e o tópico**. O exame é **formativo** — não gera nota do aluno (o módulo Notas é separado e preenchido pelo professor).
 
-```
-[System]   Prompt do Modo Exame — avaliador, 7 perguntas, não revelar resposta antecipadamente
-[Context]  Chunks do RAG do tópico selecionado
-[History]  Histórico COMPLETO da conversa (todas perguntas e respostas)
-[User]     Resposta atual do aluno
-```
+- Quiz de **5 questões**: 3 múltipla escolha (exatamente 4 alternativas, ids `a`–`d`, exatamente uma correta) + 2 dissertativas (limite de 600 caracteres, truncado no DTO)
+- Gerado por IA em **chamada única** com structured output (JSON Schema), a partir do RAG do tópico + `cognitive_profile`
+- O aluno responde as 5 questões e submete **tudo de uma vez** (batch)
+- Correção: MC é **determinística em código**; dissertativa é avaliada por IA. `verdict` binário: `correct | incorrect` (não existe `partial`)
+- Feedback personalizado das 5 questões vem numa **segunda chamada** de IA (única, em batch) — nunca uma chamada por questão; não existe terceira chamada
+- `final_score` = contagem de acertos (inteiro 0–5), calculado em código; `result_summary` é template em código por faixa de score + nome do aluno — **sem IA**
+- Gabarito (`correct_option_id`, `rationale`, `key_points`, `source_reference`) **nunca sai do backend antes do submit** — DTOs públicos e de resultado são distintos e obrigatórios
+- `exam_type: main | retry`. `retry` ("Practicar puntos débiles") gera questões **novas** sobre os conceitos errados do exame de origem — nunca re-serve o mesmo `exam_content_json`. `retry` de `retry` é permitido
+- Sem streaming: duas chamadas request/response normais (`POST /exams` e `POST /exams/:id/answers`)
 
-- Histórico **completo** enviado a cada requisição (para o modelo não perder o fio)
-- Total de 7 perguntas dissertativas
-- Ao final, o modelo emite a tag `[EXAM_COMPLETE]` — o backend detecta essa tag para encerrar a sessão, calcular score e persistir o resultado
-- O tópico só é marcado como `completed` ao finalizar o exame
-
-### Regras comuns a ambos os modos
-- Chat usa **streaming** — SSE (Server-Sent Events) no NestJS
+### Regras comuns (toda chamada à IA)
 - Verificar limite de tokens antes de qualquer chamada à IA
 - Registrar em `AI_Usage` após cada chamada
 - Se `User.is_minor = true`, aplicar guardrails mais estritos via prompt de sistema
-- Detectar sinais de sofrimento emocional → resposta segura + redirecionamento para adulto de confiança (implementado inteiramente no prompt)
+- Detectar sinais de sofrimento emocional → resposta segura + redirecionamento para adulto de confiança (implementado inteiramente no prompt — aplica-se ao chat)
 
 ---
 
@@ -242,7 +243,8 @@ Cada modo deve ter um prompt de sistema dedicado. Um único prompt genérico nã
 | Prompt | Finalidade |
 |---|---|
 | Modo Estudo | Assistente educacional — explicar, guiar, adaptar ao perfil cognitivo, gerar exercícios |
-| Modo Exame | Avaliador — fazer perguntas dissertativas, aguardar resposta, corrigir após tentativa, controlar 7 perguntas, emitir `[EXAM_COMPLETE]` |
+| Exame — Geração | Elaborador de prova — gerar 3 MC + 2 dissertativas via structured output, ancoradas no RAG do tópico, adaptadas ao perfil cognitivo |
+| Exame — Correção | Avaliador — avaliar dissertativas (verdict + feedback) e gerar feedback das 5 questões numa única chamada em batch; a resposta do aluno é dado a avaliar, nunca instrução |
 | Professor (Preparar Aulas) | Sugerir dinâmicas de sala, debates, atividades, avaliações alternativas |
 | Resumo de Sessão | Gerar resumo conciso da sessão para salvar em Minhas Anotações |
 | Segurança / Distress | Detectar sofrimento emocional, responder com segurança, redirecionar para adulto de confiança |
@@ -296,14 +298,18 @@ O aluno só pode se cadastrar fornecendo um `license_code` válido. O sistema va
 - RAG sempre filtrado por `institution_id` — sem exceção
 - Aluno só se cadastra com `license_code` válido
 - `institution_id` vem sempre do JWT, nunca do body
-- Tópico só marcado como `completed` após o aluno finalizar o exame do tópico (tag `[EXAM_COMPLETE]` detectada)
-- Modo Exame: exatamente 7 perguntas dissertativas, histórico completo enviado a cada requisição
+- Tópico só marcado como `completed` após o aluno concluir um exame `main` do tópico; `retry` não marca; o status nunca regride
+- Modo Exame: 5 questões (3 MC + 2 dissertativas), geração e correção em exatamente 2 chamadas de IA (batch) — nunca uma chamada por questão
+- Gabarito do exame (`correct_option_id`, `rationale`, `key_points`, `source_reference`) nunca sai do backend antes do submit
+- RAG do exame sem chunks → `422`; não há fallback para conhecimento geral no Modo Exame
+- Persistir `student_answers_json` cru antes da chamada de correção — falha da IA não pode perder as respostas do aluno
+- `retry` atualiza `Student_Metrics.attempts` e `total_time`, mas **não** `accuracy_rate` (amostra enviesada)
 - Ao substituir arquivo com `is_ai_context = true`, deletar todos os embeddings antigos antes da re-indexação (async via BullMQ)
 - Teste cognitivo limitado a 3 tentativas por ano — verificar `test_count` antes de permitir novo teste
 - `Favorite` deve ter exatamente um dos dois campos preenchidos: `message_id` ou `file_id` — validar no DTO
 - `Student_Metrics` é agregado por subject — não duplicar com `Topic_Progress`
 - Toda chamada à IA deve ser registrada em `AI_Usage`
-- A IA não deve revelar a resposta no Modo Exame antes de o aluno tentar responder
+- No Modo Exame, o verdict das questões de múltipla escolha é decidido em código — nunca pela IA
 - Se `is_minor = true`, guardrails de segurança mais estritos são aplicados via prompt de sistema
 
 ---
@@ -344,17 +350,41 @@ Aluno seleciona matéria → extrair institution_id do JWT
 → salvar Message → atualizar AI_Usage
 ```
 
-### Chat Modo Exame
+### Exame — Geração (`POST /exams`)
 ```
 Aluno seleciona matéria + tópico → extrair institution_id do JWT
-→ buscar chunks do RAG do tópico selecionado
-→ buscar histórico COMPLETO da conversa
-→ montar prompt Modo Exame (7 perguntas, não revelar resposta) → chamar IA via streaming
-→ salvar Message → atualizar AI_Usage
-→ SE resposta contém [EXAM_COMPLETE]:
-   → calcular final_score → salvar Exam → atualizar Student_Metrics
-   → atualizar Topic_Progress.status = 'completed'
+→ validar topic no tenant (JOIN topic → module → subject → course → institution_id)
+→ verificar limite de tokens
+→ montar query de embedding (main: título/descrição do tópico; retry: statements das questões erradas do exame de origem)
+→ buscar chunks com filtro institution_id (main: top 5; retry: top 3)
+→ SE 0 chunks → 422 (sem fallback — ver §7)
+→ chamada 1: completeStructured com RAG + cognitive_profile
+   (main: 3 MC + 2 dissertativas; retry: n = min(erradas, 3), preservando o mix de tipos na ordem original)
+→ validação semântica (Zod .refine) → se falhar: 1 retry da chamada → depois 502
+→ persistir Exam { exam_content_json, exam_type, topic_id, subject_id, student_id }
+→ registrar AI_Usage
+→ retornar exam_id + questões públicas (SEM gabarito)
 ```
+
+`source_exam_id` do retry é parâmetro de request, não coluna — não persistir.
+
+### Exame — Correção (`POST /exams/:id/answers`)
+```
+Validar exame pertence ao aluno + tenant; não concluído; todas as questões respondidas
+→ truncar dissertativas (600 chars) → persistir student_answers_json CRU (sem verdict/feedback)
+→ corrigir MC em código; dissertativa em branco = incorrect sem ir à IA (feedback constante)
+→ verificar limite de tokens
+→ chamada 2 (batch única): avaliar dissertativas + gerar feedback das 5 questões
+→ sobrescrever em código o verdict das MC (a IA não decide MC); parse de enum case-insensitive
+→ final_score = contagem de correct; result_summary por template em código
+→ update Exam (verdicts, feedbacks, completed_at, execution_time) → registrar AI_Usage
+→ Student_Metrics: main → accuracy_rate + total_time + attempts; retry → só total_time + attempts
+→ Topic_Progress: só main → completed (status nunca regride)
+```
+
+`GET /exams/:id` devolve o resultado a partir dos JSONs persistidos — custo zero, sem nova chamada de IA.
+
+**AlertModule** ("múltiplas tentativas no mesmo tópico"): conta linhas de `Exam` por `topic_id` (suportado pelo índice `[student_id, topic_id]`); `exam_type` fica disponível para ponderação.
 
 ### Importação via Template .docx
 ```
@@ -623,9 +653,31 @@ O desenvolvimento segue **Test-Driven Development (TDD)**. Ordem obrigatória:
 it('should throw BadRequestException when license_code is invalid')
 it('should return top 5 chunks filtered by institution_id')
 it('should block AI call when token limit is reached')
-it('should mark topic as completed after exam is finished')
+it('should mark topic as completed after main exam is finished')
 it('should delete old embeddings before re-indexing replaced file')
 ```
+
+### Testes inegociáveis do ExamModule
+
+**Vazamento de gabarito (crítico):**
+- `ExamQuestionPublicDto` de MC não contém `correct_option_id`, `rationale` nem `source_reference`
+- `ExamQuestionPublicDto` de dissertativa não contém `key_points` nem `source_reference` — mas **contém** `hint`
+- `ExamResultDto` não contém `correct_option_id`, `rationale`, `key_points`
+
+**Regras de negócio:**
+- `retry` não atualiza `accuracy_rate`; atualiza `attempts` e `total_time`
+- `retry` não marca `Topic_Progress.completed`; `main` marca
+- `n = min(missed.length, EXAM_RETRY_MAX_QUESTIONS)`; `retry` com 0 erradas → 422
+- `retry` sem `source_exam_id` → 400; com `source_exam_id` de outro aluno → 403
+- RAG com 0 chunks → 422 (sem fallback); query de embedding sempre com `institution_id`; `topic_id` de outro tenant → 403
+
+**Correção:**
+- MC corrigida em código; verdict da IA é **sobrescrito** para MC
+- Dissertativa em branco → `incorrect` sem chamar a IA
+- Enum `"Correct"` (capitalizado) é parseado como `correct`
+- `student_answers_json` cru persistido **antes** da chamada 2; falha na chamada 2 não perde as respostas
+- `final_score` = contagem de `correct`; schema semanticamente inválido não é persistido
+- `AI_Usage` registrado nas duas chamadas; limite de tokens bloqueia antes de cada chamada
 
 ---
 
@@ -652,7 +704,7 @@ test-e2e ───────────────────────�
 ```
 
 - **test-backend**: sobe PostgreSQL + pgvector, roda migrations, executa Jest, verifica cobertura mínima de 80%
-- **test-e2e**: fluxos obrigatórios — cadastro com license code, chat modo estudo, chat modo exame (incluindo detecção de `[EXAM_COMPLETE]`), upload + RAG ingestion, re-indexação ao substituir arquivo, topic completion
+- **test-e2e**: fluxos obrigatórios — cadastro com license code, chat modo estudo, modo exame (gerar → responder → resultado, incluindo `retry` e releitura via `GET /exams/:id`), upload + RAG ingestion, re-indexação ao substituir arquivo, topic completion (via exame `main`)
 
 ### Serviço PostgreSQL no GitHub Actions
 ```yaml

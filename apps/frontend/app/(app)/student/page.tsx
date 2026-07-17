@@ -1,18 +1,19 @@
-import { getSession } from '@/lib/session';
-import { logoutAction } from '@/app/actions/auth';
+import { getStudentSubjects } from "@/lib/api/subject";
+import { ChatScreen } from "@/components/modules/chat/chat-screen";
 
-export default async function StudentDashboard() {
-  const session = await getSession();
+// Chat IA — Modo Estudo (item "Chat" da sidebar aponta para /student).
+// Server component: busca as matérias do aluno e entrega ao ChatScreen.
+export default async function StudentChatPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ subjectId?: string }>;
+}) {
+  const subjects = await getStudentSubjects();
+  const { subjectId } = await searchParams;
 
   return (
-    <main className="p-8">
-      <h1 className="text-2xl font-bold">Dashboard do Aluno</h1>
-      <p className="text-gray-500 mt-1">Bem-vindo, {session?.userId}</p>
-      <form action={logoutAction} className="mt-4">
-        <button type="submit" className="text-sm text-red-600 hover:underline">
-          Sair
-        </button>
-      </form>
-    </main>
+    <div className="h-full">
+      <ChatScreen subjects={subjects} initialSubjectId={subjectId} />
+    </div>
   );
 }

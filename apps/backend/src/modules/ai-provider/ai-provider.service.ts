@@ -5,6 +5,8 @@ import {
   AICompletionResult,
   AIEmbeddingResult,
   AIProvider,
+  AIStructuredOptions,
+  AIStructuredResult,
 } from './ai-provider.interface';
 import { GeminiAdapter } from './adapters/gemini.adapter';
 
@@ -45,6 +47,12 @@ export class AIProviderService {
 
   complete(options: AICompletionOptions): Promise<AICompletionResult> {
     return this.getProvider().complete(options);
+  }
+
+  completeStructured<T = unknown>(
+    options: AIStructuredOptions,
+  ): Promise<AIStructuredResult<T>> {
+    return this.getProvider().completeStructured<T>(options);
   }
 
   stream(options: AICompletionOptions): AsyncIterable<string> {

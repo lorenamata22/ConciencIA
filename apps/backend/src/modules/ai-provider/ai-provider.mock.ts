@@ -4,6 +4,7 @@ import { AIProvider } from './ai-provider.interface';
 // Nunca chamar a API real em testes
 export const createAIProviderMock = (): jest.Mocked<AIProvider> => ({
   complete: jest.fn(),
+  completeStructured: jest.fn(),
   stream: jest.fn(),
   embed: jest.fn(),
   getProviderName: jest.fn().mockReturnValue('mock'),

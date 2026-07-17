@@ -4,6 +4,9 @@ import {
   AICompletionResult,
   AIEmbeddingResult,
   AIProvider,
+  AIResponseTruncatedError,
+  AIStructuredOptions,
+  AIStructuredResult,
 } from '../ai-provider.interface';
 
 // Dimensão fixada em 1024 — acoplada à coluna vector(1024) do schema e ao
@@ -44,6 +47,10 @@ export class GeminiAdapter implements AIProvider {
     return 'google';
   }
 
+  getModelName(): string {
+    return this.config.geminiModel;
+  }
+
   async complete(options: AICompletionOptions): Promise<AICompletionResult> {
     const response = await this.client.models.generateContent(
       this.buildRequest(options),
@@ -55,12 +62,54 @@ export class GeminiAdapter implements AIProvider {
     };
   }
 
+  // Structured output nativo do Gemini: responseMimeType + responseJsonSchema
+  // garantem JSON aderente ao schema. Truncamento por maxOutputTokens produz
+  // JSON incompleto — detectado via finishReason antes do parse.
+  async completeStructured<T = unknown>(
+    options: AIStructuredOptions,
+  ): Promise<AIStructuredResult<T>> {
+    const request = this.buildRequest(options);
+    const response = await this.client.models.generateContent({
+      ...request,
+      config: {
+        ...request.config,
+        responseMimeType: 'application/json',
+        responseJsonSchema: options.jsonSchema,
+      },
+    });
+
+    if (String(response.candidates?.[0]?.finishReason) === 'MAX_TOKENS') {
+      throw new AIResponseTruncatedError(
+        response.usageMetadata?.promptTokenCount ?? 0,
+        response.usageMetadata?.candidatesTokenCount ?? 0,
+      );
+    }
+
+    return {
+      data: JSON.parse(response.text ?? '') as T,
+      promptTokens: response.usageMetadata?.promptTokenCount ?? 0,
+      responseTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+    };
+  }
+
+  // O usageMetadata chega no(s) chunk(s) finais do stream — capturado e
+  // reportado via options.onUsage ao final, sem mudar o contrato AsyncIterable<string>
   async *stream(options: AICompletionOptions): AsyncIterable<string> {
     const stream = await this.client.models.generateContentStream(
       this.buildRequest(options),
     );
+    let usage:
+      | { promptTokenCount?: number; candidatesTokenCount?: number }
+      | undefined;
     for await (const chunk of stream) {
+      if (chunk.usageMetadata) usage = chunk.usageMetadata;
       if (chunk.text) yield chunk.text;
+    }
+    if (usage && options.onUsage) {
+      options.onUsage({
+        promptTokens: usage.promptTokenCount ?? 0,
+        responseTokens: usage.candidatesTokenCount ?? 0,
+      });
     }
   }
 

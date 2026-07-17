@@ -18,6 +18,13 @@ import { DriveModule } from './modules/drive/drive.module';
 import { AIProviderModule } from './modules/ai-provider/ai-provider.module';
 import { FileModule } from './modules/file/file.module';
 import { RagModule } from './modules/rag/rag.module';
+import { ChatModule } from './modules/chat/chat.module';
+import { ConversationModule } from './modules/conversation/conversation.module';
+import { MessageModule } from './modules/message/message.module';
+import { AIUsageModule } from './modules/ai-usage/ai-usage.module';
+import { ExamModule } from './modules/exam/exam.module';
+import { TopicProgressModule } from './modules/topic-progress/topic-progress.module';
+import { StudentMetricsModule } from './modules/student-metrics/student-metrics.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
@@ -56,6 +63,13 @@ import { GlobalExceptionFilter } from './common/filters/exception.filter';
     AIProviderModule,
     FileModule,
     RagModule,
+    ChatModule,
+    ConversationModule,
+    MessageModule,
+    AIUsageModule,
+    ExamModule,
+    TopicProgressModule,
+    StudentMetricsModule,
   ],
   controllers: [AppController],
   providers: [
