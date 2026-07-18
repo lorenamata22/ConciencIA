@@ -14,6 +14,7 @@ describe('AuthService', () => {
   let prismaMock: PrismaMock;
   let jwtService: jest.Mocked<JwtService>;
   let studentServiceMock: { registerWithLicenseCode: jest.Mock };
+  let emailServiceMock: { sendPasswordReset: jest.Mock };
 
   const mockUser = {
     id: 'user-id-1',
@@ -54,9 +55,9 @@ describe('AuthService', () => {
         },
         {
           provide: EmailService,
-          useValue: {
+          useValue: (emailServiceMock = {
             sendPasswordReset: jest.fn().mockResolvedValue(undefined),
-          },
+          }),
         },
         { provide: StudentService, useValue: studentServiceMock },
       ],
@@ -361,6 +362,75 @@ describe('AuthService', () => {
         }),
       ).rejects.toThrow(BadRequestException);
       expect(prismaMock.user.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('requestPasswordReset', () => {
+    beforeEach(() => {
+      prismaMock.passwordResetToken.updateMany.mockResolvedValue({
+        count: 0,
+      } as never);
+      prismaMock.passwordResetToken.create.mockResolvedValue({} as never);
+    });
+
+    it('should NEVER return the reset token in the response (account takeover vector)', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        password: 'hash',
+      } as never);
+
+      const result = await service.requestPasswordReset('joao@escola.com');
+
+      // O token viaja SOMENTE no email — nunca no corpo da resposta HTTP
+      expect(JSON.stringify(result)).not.toContain('token');
+      const sentToken = emailServiceMock.sendPasswordReset.mock
+        .calls[0]?.[1] as string;
+      expect(sentToken).toBeTruthy();
+      expect(JSON.stringify(result)).not.toContain(sentToken);
+    });
+
+    it('should return a uniform response whether the email exists or not (anti-enumeration)', async () => {
+      prismaMock.user.findUnique.mockResolvedValueOnce({
+        ...mockUser,
+        password: 'hash',
+      } as never);
+      const existing = await service.requestPasswordReset('joao@escola.com');
+
+      prismaMock.user.findUnique.mockResolvedValueOnce(null);
+      const missing = await service.requestPasswordReset('nadie@escola.com');
+
+      expect(existing).toEqual(missing);
+    });
+
+    it('should send the reset token via email and invalidate previous unused tokens', async () => {
+      prismaMock.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        password: 'hash',
+      } as never);
+
+      await service.requestPasswordReset('joao@escola.com');
+
+      expect(emailServiceMock.sendPasswordReset).toHaveBeenCalledWith(
+        'joao@escola.com',
+        expect.any(String),
+      );
+      expect(prismaMock.passwordResetToken.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            user_id: mockUser.id,
+            used: false,
+          }),
+        }),
+      );
+    });
+
+    it('should not send email nor create token when the email does not exist', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+
+      await service.requestPasswordReset('nadie@escola.com');
+
+      expect(emailServiceMock.sendPasswordReset).not.toHaveBeenCalled();
+      expect(prismaMock.passwordResetToken.create).not.toHaveBeenCalled();
     });
   });
 });

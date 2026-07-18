@@ -206,12 +206,20 @@ export class AuthService {
     }
   }
 
-  async requestPasswordReset(email: string): Promise<{ token: string }> {
+  // SEGURANÇA: o token de reset viaja SOMENTE no email — nunca no corpo da
+  // resposta HTTP. Devolvê-lo permitiria takeover de qualquer conta sem
+  // acesso ao email da vítima. A resposta é uniforme (anti-enumeração).
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    const uniformResponse = {
+      message:
+        'Si el email está registrado, enviaremos un enlace de recuperación.',
+    };
+
     const user = await this.prisma.user.findUnique({ where: { email } });
 
-    // Retorna sucesso mesmo quando o email não existe (evita enumeração de usuários)
+    // Resposta idêntica mesmo quando o email não existe (evita enumeração)
     if (!user) {
-      return { token: '' };
+      return uniformResponse;
     }
 
     // Invalida tokens anteriores não utilizados do mesmo usuário
@@ -233,7 +241,7 @@ export class AuthService {
 
     await this.emailService.sendPasswordReset(user.email, token);
 
-    return { token };
+    return uniformResponse;
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
