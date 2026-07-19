@@ -12,16 +12,20 @@ export interface ChatConversation {
   id: string;
   student_id: string;
   subject_id: string;
-  topic_id: string | null;
+  // NOT NULL no backend: o chat é por tópico (cada tópico = uma sessão)
+  topic_id: string;
 }
 
-export async function getConversation(subjectId: string): Promise<{
+export async function getConversation(
+  subjectId: string,
+  topicId: string,
+): Promise<{
   conversation: ChatConversation;
   messages: ChatMessageItem[];
 } | null> {
   try {
     const res = await fetch(
-      `/api/chat/conversation?subjectId=${encodeURIComponent(subjectId)}`,
+      `/api/chat/conversation?subjectId=${encodeURIComponent(subjectId)}&topicId=${encodeURIComponent(topicId)}`,
     );
     if (!res.ok) return null;
     const json = await res.json();

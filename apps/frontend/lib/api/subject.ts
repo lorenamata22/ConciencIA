@@ -23,6 +23,22 @@ export interface SubjectItem {
   files?: SubjectFile[];
 }
 
+// Matéria + estrutura (módulos/tópicos com id) — server-side, alimenta a
+// tela de edição. Os ids são o que preserva os dados do aluno ao salvar.
+export async function getMySubjectStructure(subjectId: string) {
+  try {
+    const res = await fetch(`${API_URL}/subjects/me/${subjectId}/structure`, {
+      headers: await authHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export interface CourseOption {
   id: string;
   name: string;

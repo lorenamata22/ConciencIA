@@ -30,20 +30,26 @@ export class ChatController {
     private readonly messageService: MessageService,
   ) {}
 
-  // Retoma (ou cria) a conversa da matéria e devolve o histórico —
-  // 1 conversa contínua por matéria (decisão de produto do MVP)
+  // Retoma (ou cria) a conversa do tópico e devolve o histórico —
+  // 1 conversa contínua por (aluno, matéria, tópico): cada tópico é uma sessão
   @Get('conversations')
   async getConversation(
     @CurrentUser() user: JwtPayload,
     @Query('subject_id') subjectId: string,
+    @Query('topic_id') topicId: string,
   ) {
     if (!subjectId) {
       throw new BadRequestException('subject_id es obligatorio');
     }
+    if (!topicId) {
+      throw new BadRequestException('topic_id es obligatorio');
+    }
 
     const conversation = await this.conversationService.resumeOrCreateByUser(
       user.userId,
+      user.institutionId,
       subjectId,
+      topicId,
     );
     const messages = await this.messageService.findByConversation(
       conversation.id,

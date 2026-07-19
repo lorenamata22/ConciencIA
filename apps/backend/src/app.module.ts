@@ -8,6 +8,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { InstitutionModule } from './modules/institution/institution.module';
 import { CourseModule } from './modules/course/course.module';
 import { SubjectModule } from './modules/subject/subject.module';
+import { CourseModuleModule } from './modules/course-module/course-module.module';
+import { TopicModule } from './modules/topic/topic.module';
 import { ClassModule } from './modules/class/class.module';
 import { PeriodOptionModule } from './modules/period-option/period-option.module';
 import { TeacherModule } from './modules/teacher/teacher.module';
@@ -53,6 +55,8 @@ import { GlobalExceptionFilter } from './common/filters/exception.filter';
     InstitutionModule,
     CourseModule,
     SubjectModule,
+    CourseModuleModule,
+    TopicModule,
     ClassModule,
     PeriodOptionModule,
     TeacherModule,

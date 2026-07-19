@@ -22,14 +22,15 @@ export function useChatStream() {
   // Evita corrida ao trocar de matéria durante um carregamento
   const loadSequence = useRef(0);
 
-  const loadConversation = useCallback(async (subjectId: string) => {
+  const loadConversation = useCallback(
+    async (subjectId: string, topicId: string) => {
     const sequence = ++loadSequence.current;
     setLoading(true);
     setError(null);
     setMessages([]);
     setConversationId(null);
 
-    const data = await getConversation(subjectId);
+    const data = await getConversation(subjectId, topicId);
     if (sequence !== loadSequence.current) return;
 
     if (data) {
@@ -45,7 +46,9 @@ export function useChatStream() {
       setError('No se pudo cargar la conversación.');
     }
     setLoading(false);
-  }, []);
+    },
+    [],
+  );
 
   const send = useCallback(
     async (content: string) => {

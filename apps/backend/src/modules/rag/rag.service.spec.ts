@@ -40,6 +40,8 @@ describe('RagService', () => {
   const baseJob = {
     fileId: 'file-id-1',
     institutionId,
+    subjectId: 'subject-id-1',
+    topicId: 'topic-id-1',
     fileUrl: 'https://storage/aula-01.pdf',
     fileName: 'aula-01.pdf',
     replaceExisting: false,
@@ -154,6 +156,39 @@ describe('RagService', () => {
       expect(allValues).toContain('topic-id-1');
       expect(allValues).toContain('module-id-1');
       expect(allValues).toContain('aula-01.pdf');
+    });
+
+    it('should insert the denormalized scope columns (institution/subject/topic/module) from File', async () => {
+      await service.ingestFile(baseJob);
+
+      const insertCall = prismaMock.$executeRaw.mock
+        .calls[0][0] as unknown as SqlLike;
+      const sql = sqlTextOf(insertCall);
+      // As colunas de escopo entram no INSERT (não só no metadata JSON)
+      expect(sql).toContain('institution_id');
+      expect(sql).toContain('subject_id');
+      expect(sql).toContain('topic_id');
+      expect(sql).toContain('module_id');
+      // E os valores viajam parametrizados (a partir de File)
+      const values = JSON.stringify(insertCall.values);
+      expect(values).toContain(institutionId);
+      expect(values).toContain('subject-id-1');
+      expect(values).toContain('topic-id-1');
+      expect(values).toContain('module-id-1');
+    });
+
+    it('should preserve the denormalized columns on re-indexing (replaceExisting)', async () => {
+      prismaMock.embedding.deleteMany.mockResolvedValue({ count: 3 } as never);
+
+      await service.ingestFile({ ...baseJob, replaceExisting: true });
+
+      const insertCall = prismaMock.$executeRaw.mock
+        .calls[0][0] as unknown as SqlLike;
+      const values = JSON.stringify(insertCall.values);
+      expect(values).toContain(institutionId);
+      expect(values).toContain('subject-id-1');
+      expect(values).toContain('topic-id-1');
+      expect(values).toContain('module-id-1');
     });
 
     it('should delete old embeddings before re-indexing when replaceExisting is true', async () => {
@@ -317,7 +352,23 @@ describe('RagService', () => {
       ).toBe(true);
     });
 
-    it('should filter by subject_id and by topic_id when provided', async () => {
+    it('should query the denormalized embedding columns (no JOIN to file)', async () => {
+      await service.search({
+        query: 'equação',
+        institutionId,
+        subjectId: 'subject-id-1',
+        topicId: 'topic-id-1',
+      });
+
+      const sql = sqlTextOf(
+        prismaMock.$queryRaw.mock.calls[0][0] as unknown as SqlLike,
+      ).toLowerCase();
+      expect(sql).toContain('from embedding');
+      expect(sql).not.toContain('join file');
+      expect(sql).toContain('e.institution_id');
+    });
+
+    it('should apply the topic scope rule (topic OR subject-wide with topic_id NULL) when topicId is provided', async () => {
       await service.search({
         query: 'equação',
         institutionId,
@@ -327,8 +378,29 @@ describe('RagService', () => {
 
       const sqlArg = prismaMock.$queryRaw.mock
         .calls[0][0] as unknown as SqlLike;
+      const sql = sqlTextOf(sqlArg).toLowerCase();
+      // Material do tópico OU material da matéria (topic_id NULL)
+      expect(sql).toContain('e.topic_id');
+      expect(sql).toContain('is null');
       expect(sqlArg.values).toContain('subject-id-1');
       expect(sqlArg.values).toContain('topic-id-1');
+    });
+
+    it('should search the whole subject (no topic constraint) when topicId is absent — Exam mode', async () => {
+      await service.search({
+        query: 'equação',
+        institutionId,
+        subjectId: 'subject-id-1',
+      });
+
+      const sqlArg = prismaMock.$queryRaw.mock
+        .calls[0][0] as unknown as SqlLike;
+      const sql = sqlTextOf(sqlArg).toLowerCase();
+      // Matéria inteira: filtra subject_id e NÃO restringe topic_id
+      expect(sql).toContain('e.subject_id');
+      expect(sql).not.toContain('is null');
+      expect(sqlArg.values).toContain('subject-id-1');
+      expect(sqlArg.values).toContain(institutionId);
     });
 
     it('should use default topK of 5 when not provided', async () => {
@@ -373,6 +445,142 @@ describe('RagService', () => {
 
       expect(result.chunks).toHaveLength(0);
       expect(result.hasSufficientContext).toBe(false);
+    });
+  });
+
+  // Sonda de cobertura do programa: para cada tópico, existe algum chunk da
+  // matéria que casa acima do limiar? Mesmo predicado que o Modo Exame usa
+  // para decidir entre gerar a prova e devolver 422.
+  describe('probeTopicCoverage', () => {
+    const topics = [
+      { topicId: 'topic-a', text: 'Ecuaciones de primer grado' },
+      { topicId: 'topic-b', text: 'Geometría del espacio' },
+    ];
+
+    it('should embed every topic query in a SINGLE batch call', async () => {
+      prismaMock.$queryRaw.mockResolvedValue([] as never);
+
+      await service.probeTopicCoverage({
+        institutionId,
+        subjectId: 'subject-id-1',
+        topics,
+      });
+
+      // Um lote, não uma chamada por tópico — 50 tópicos não podem virar
+      // 50 requisições à API de embeddings
+      expect(aiProviderMock.embed).toHaveBeenCalledTimes(1);
+      expect(aiProviderMock.embed).toHaveBeenCalledWith([
+        'Ecuaciones de primer grado',
+        'Geometría del espacio',
+      ]);
+    });
+
+    it('should mark a topic as covered when a chunk is within the distance threshold', async () => {
+      prismaMock.$queryRaw.mockResolvedValue([mockChunkRow] as never);
+
+      const result = await service.probeTopicCoverage({
+        institutionId,
+        subjectId: 'subject-id-1',
+        topics: [topics[0]],
+      });
+
+      expect(result.results[0]).toEqual(
+        expect.objectContaining({
+          topic_id: 'topic-a',
+          covered: true,
+          document_name: 'aula-01.pdf',
+        }),
+      );
+    });
+
+    it('should mark a topic as NOT covered when the closest chunk is beyond the threshold', async () => {
+      prismaMock.$queryRaw.mockResolvedValue([
+        { ...mockChunkRow, distance: MAX_COSINE_DISTANCE + 0.01 },
+      ] as never);
+
+      const result = await service.probeTopicCoverage({
+        institutionId,
+        subjectId: 'subject-id-1',
+        topics: [topics[0]],
+      });
+
+      expect(result.results[0].covered).toBe(false);
+      expect(result.results[0].document_name).toBeNull();
+    });
+
+    it('should mark a topic as NOT covered when the subject has no chunks at all', async () => {
+      prismaMock.$queryRaw.mockResolvedValue([] as never);
+
+      const result = await service.probeTopicCoverage({
+        institutionId,
+        subjectId: 'subject-id-1',
+        topics: [topics[0]],
+      });
+
+      expect(result.results[0].covered).toBe(false);
+      expect(result.results[0].best_distance).toBeNull();
+    });
+
+    it('should ALWAYS filter by institution_id in every probe query', async () => {
+      prismaMock.$queryRaw.mockResolvedValue([] as never);
+
+      await service.probeTopicCoverage({
+        institutionId,
+        subjectId: 'subject-id-1',
+        topics,
+      });
+
+      // Uma query por tópico, todas com o filtro de tenant
+      expect(prismaMock.$queryRaw).toHaveBeenCalledTimes(2);
+      for (const call of prismaMock.$queryRaw.mock.calls) {
+        const sqlArg = call[0] as unknown as SqlLike;
+        expect(sqlTextOf(sqlArg)).toContain('institution_id');
+        expect(sqlArg.values).toContain(institutionId);
+      }
+    });
+
+    it('should discard a chunk from another institution even if the query returns one', async () => {
+      prismaMock.$queryRaw.mockResolvedValue([
+        {
+          ...mockChunkRow,
+          metadata: { ...mockChunkRow.metadata, institution_id: 'outra-inst' },
+        },
+      ] as never);
+
+      const result = await service.probeTopicCoverage({
+        institutionId,
+        subjectId: 'subject-id-1',
+        topics: [topics[0]],
+      });
+
+      expect(result.results[0].covered).toBe(false);
+    });
+
+    it('should not call the embeddings API when there are no topics', async () => {
+      const result = await service.probeTopicCoverage({
+        institutionId,
+        subjectId: 'subject-id-1',
+        topics: [],
+      });
+
+      expect(aiProviderMock.embed).not.toHaveBeenCalled();
+      expect(result.results).toEqual([]);
+      expect(result.estimatedTokens).toBe(0);
+    });
+
+    // O registro em AI_Usage precisa dizer qual modelo rodou de fato. A sonda
+    // usa o modelo de EMBEDDING, não o de texto — reportar o de texto dá um
+    // relatório de custo errado.
+    it('should report the embedding model actually used, not the text model', async () => {
+      prismaMock.$queryRaw.mockResolvedValue([] as never);
+
+      const result = await service.probeTopicCoverage({
+        institutionId,
+        subjectId: 'subject-id-1',
+        topics: [topics[0]],
+      });
+
+      expect(result.model).toBe('voyage-3');
     });
   });
 });

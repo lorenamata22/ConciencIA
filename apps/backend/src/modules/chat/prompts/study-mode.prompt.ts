@@ -4,6 +4,9 @@
 
 export interface StudyModePromptParams {
   subjectName: string;
+  // Ementa do tópico (Topic.description) — guardrail de escopo, injetado direto
+  // (não vem do RAG). Vazio/null quando o tópico não tem ementa.
+  topicDescription?: string | null;
   ragChunks: string[];
   hasSufficientContext: boolean;
   cognitiveProfile: unknown;
@@ -28,6 +31,17 @@ Debes evitar: hacer los deberes por el alumno sin explicación, inventar conteni
 que contradiga el material del curso, salir del ámbito educativo.
 Formato de salida: texto claro y estructurado; usa listas y ejemplos cuando ayuden.`,
   );
+
+  // [Ámbito] — Topic.description como guardrail de escopo, injetado direto
+  // (não passa por RAG). Delimita o tema; a substância vem dos chunks abaixo.
+  if (params.topicDescription && params.topicDescription.trim().length > 0) {
+    blocks.push(
+      `# Ámbito del tema
+Mantente dentro del alcance de este tema (temario del profesor). No es material
+de estudio en sí, solo delimita de qué trata el tema:
+${params.topicDescription.trim()}`,
+    );
+  }
 
   // [Contexto] — material do professor via RAG, ou instrução de fallback sinalizado
   if (params.hasSufficientContext && params.ragChunks.length > 0) {

@@ -26,9 +26,31 @@ export interface SendMessageResult {
 // de Conversation_Summary fica para a sprint do prompt "Resumo de Sessão"
 const STUDY_HISTORY_LIMIT = 10;
 
+// Top K do chat, acima do DEFAULT_TOP_K (5) do RagService. Como o material
+// hoje é indexado por matéria (topic_id NULL nos embeddings), o corpus de uma
+// pergunta é a matéria inteira — um livro único pode cobrir 50 tópicos. Top 5
+// vira contexto raso; o corte por MAX_COSINE_DISTANCE descarta o irrelevante,
+// então o custo real são só os chunks que sobrevivem ao corte.
+export const STUDY_TOP_K = 8;
+
 // Estimativa usada apenas quando o stream não reporta tokens reais
 // (ex: cliente desconectou no meio) — ~4 chars por token
 const estimateTokens = (text: string): number => Math.ceil(text.length / 4);
+
+// Ancora a busca no tópico em foco. Mesma técnica já usada na geração de
+// exame (ExamService.generate), que embeda título + ementa do tópico: sem a
+// âncora, "explícame esto" não tem sinal nenhum de QUAL tópico o aluno está
+// estudando e recupera qualquer coisa da matéria.
+// Topic.description é a ementa verbatim do programa (§14) — é o melhor texto
+// disponível para casar contra as páginas certas do material.
+// A mensagem do aluno vem por último e é o sinal mais específico.
+const buildTopicAnchoredQuery = (
+  topic: { title?: string | null; description?: string | null } | null,
+  message: string,
+): string =>
+  [topic?.title, topic?.description, message]
+    .filter((part): part is string => Boolean(part?.trim()))
+    .join('\n');
 
 @Injectable()
 export class ChatService {
@@ -61,9 +83,10 @@ export class ChatService {
     );
 
     const { chunks, hasSufficientContext } = await this.searchRag(
-      input.content,
+      buildTopicAnchoredQuery(conversation.topic, input.content),
       institutionId,
       conversation.subject_id,
+      conversation.topic_id,
     );
 
     const summary = await this.prisma.conversationSummary.findFirst({
@@ -84,6 +107,7 @@ export class ChatService {
 
     const system = buildStudyModeSystemPrompt({
       subjectName: conversation.subject?.name ?? 'la asignatura',
+      topicDescription: conversation.topic?.description ?? null,
       ragChunks: chunks,
       hasSufficientContext,
       cognitiveProfile: student.cognitive_profile,
@@ -124,7 +148,7 @@ export class ChatService {
 
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: input.conversation_id },
-      include: { subject: true },
+      include: { subject: true, topic: true },
     });
     if (!conversation) {
       throw new NotFoundException('Conversación no encontrada');
@@ -148,6 +172,7 @@ export class ChatService {
       institutionId,
       subjectId,
       topicId,
+      topK: STUDY_TOP_K,
     });
 
     const rawChunks = Array.isArray(result) ? result : (result?.chunks ?? []);

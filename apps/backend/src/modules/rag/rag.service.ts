@@ -19,7 +19,16 @@ import {
   RagIngestionJob,
   RagSearchParams,
   RagSearchResult,
+  TopicCoverageItem,
+  TopicCoverageQuery,
+  TopicCoverageResult,
 } from './rag.types';
+
+// A API de embeddings do Gemini não reporta contagem de tokens, mas §11 exige
+// registro em AI_Usage de toda chamada à IA — estimamos por ~4 chars/token,
+// mesma convenção usada no ChatService quando o stream não reporta tokens.
+const estimateEmbeddingTokens = (texts: string[]): number =>
+  texts.reduce((total, text) => total + Math.ceil(text.length / 4), 0);
 
 // Módulo mais crítico do sistema (CLAUDE.md §7): toda query de embedding
 // DEVE ser filtrada por institution_id — sem exceção.
@@ -134,9 +143,13 @@ export class RagService {
     const { vectors } = await this.aiProvider.embed([query]);
     const queryVector = JSON.stringify(vectors[0]);
 
-    const topicFilter = topicId
-      ? Prisma.sql`AND f.topic_id = ${topicId}`
-      : Prisma.empty;
+    // Escopo denormalizado, sem JOIN no caminho quente (§7.1):
+    // - com topicId (chat): material do tópico OU material da matéria inteira
+    //   (subject_id da matéria e topic_id NULL). Upload só de institution nunca entra.
+    // - sem topicId (exame): matéria inteira. institution_id SEMPRE presente.
+    const scopeFilter = topicId
+      ? Prisma.sql`AND (e.topic_id = ${topicId} OR (e.subject_id = ${subjectId} AND e.topic_id IS NULL))`
+      : Prisma.sql`AND e.subject_id = ${subjectId}`;
 
     const rows = await this.prisma.$queryRaw<RagChunk[]>(Prisma.sql`
       SELECT
@@ -145,10 +158,8 @@ export class RagService {
         e.metadata,
         e.embedding_vector <=> ${queryVector}::vector AS distance
       FROM embedding e
-      JOIN file f ON f.id = e.file_id
-      WHERE f.institution_id = ${institutionId}
-        AND f.subject_id = ${subjectId}
-        ${topicFilter}
+      WHERE e.institution_id = ${institutionId}
+        ${scopeFilter}
       ORDER BY e.embedding_vector <=> ${queryVector}::vector
       LIMIT ${topK}
     `);
@@ -162,6 +173,72 @@ export class RagService {
     );
 
     return { chunks, hasSufficientContext: chunks.length > 0 };
+  }
+
+  // Sonda de cobertura do programa: para cada tópico, existe algum chunk da
+  // matéria dentro do limiar? Alimenta a tela de Documentación, onde o
+  // professor vê quais tópicos o material já cobre.
+  //
+  // Deliberadamente NÃO conta embeddings rotulados por topic_id (hoje sempre
+  // NULL): mede o que o retrieval de fato encontraria, então um tópico verde
+  // significa "o Modo Exame consegue gerar prova deste tópico".
+  async probeTopicCoverage(params: {
+    institutionId: string;
+    subjectId: string;
+    topics: TopicCoverageQuery[];
+  }): Promise<TopicCoverageResult> {
+    const { institutionId, subjectId, topics } = params;
+
+    if (topics.length === 0) {
+      return { results: [], estimatedTokens: 0, model: '' };
+    }
+
+    // Um único lote para todos os tópicos — o adapter já fatia em sub-lotes
+    // de 98 internamente. 50 tópicos = 1 requisição, não 50.
+    const { vectors, model } = await this.aiProvider.embed(
+      topics.map((topic) => topic.text),
+    );
+
+    const results: TopicCoverageItem[] = [];
+
+    for (let index = 0; index < topics.length; index++) {
+      const queryVector = JSON.stringify(vectors[index]);
+
+      // Só o vizinho mais próximo: a pergunta é binária ("existe algo
+      // relevante?"), não precisamos do top K.
+      const rows = await this.prisma.$queryRaw<RagChunk[]>(Prisma.sql`
+        SELECT
+          e.chunk_text,
+          e.metadata,
+          e.embedding_vector <=> ${queryVector}::vector AS distance
+        FROM embedding e
+        WHERE e.institution_id = ${institutionId}
+          AND e.subject_id = ${subjectId}
+        ORDER BY e.embedding_vector <=> ${queryVector}::vector
+        LIMIT 1
+      `);
+
+      // Mesma defesa em profundidade do search(): chunk de outro tenant é
+      // descartado mesmo que a query o tenha retornado
+      const nearest = rows.find(
+        (row) => row.metadata?.institution_id === institutionId,
+      );
+      const covered =
+        nearest != null && nearest.distance <= MAX_COSINE_DISTANCE;
+
+      results.push({
+        topic_id: topics[index].topicId,
+        covered,
+        best_distance: nearest?.distance ?? null,
+        document_name: covered ? (nearest?.metadata?.document_name ?? null) : null,
+      });
+    }
+
+    return {
+      results,
+      estimatedTokens: estimateEmbeddingTokens(topics.map((t) => t.text)),
+      model,
+    };
   }
 
   // Sliding window simples em caracteres, igual para PDF/DOCX/PPTX no MVP.
@@ -188,13 +265,15 @@ export class RagService {
     vectors: number[][],
     metadata: RagChunkMetadata,
   ): Promise<void> {
+    // Escopo denormalizado (§7.1) vem do metadata — mesma fonte (File) já usada
+    // no pipeline. Vale igual na re-indexação (os chunks novos são reinseridos).
     const rows = chunks.map(
       (chunkText, index) =>
-        Prisma.sql`(${randomUUID()}, ${metadata.file_id}, ${chunkText}, ${JSON.stringify(vectors[index])}::vector, ${JSON.stringify(metadata)}::jsonb, now())`,
+        Prisma.sql`(${randomUUID()}, ${metadata.file_id}, ${metadata.institution_id}, ${metadata.subject_id}, ${metadata.topic_id}, ${metadata.module_id}, ${chunkText}, ${JSON.stringify(vectors[index])}::vector, ${JSON.stringify(metadata)}::jsonb, now())`,
     );
 
     await this.prisma.$executeRaw(Prisma.sql`
-      INSERT INTO embedding (id, file_id, chunk_text, embedding_vector, metadata, created_at)
+      INSERT INTO embedding (id, file_id, institution_id, subject_id, topic_id, module_id, chunk_text, embedding_vector, metadata, created_at)
       VALUES ${Prisma.join(rows)}
     `);
   }

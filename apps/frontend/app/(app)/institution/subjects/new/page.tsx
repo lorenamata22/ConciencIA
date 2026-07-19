@@ -1,7 +1,9 @@
-import { getMyCourses } from '@/lib/api/subject';
-import { CreateSubjectForm } from './create-subject-form';
+import { getMyCourses } from "@/lib/api/subject";
+import { NewSubjectPage } from "@/components/modules/subject/new-subject-page";
 
-export default async function NewSubjectPage() {
+// Server Component: busca os cursos e entrega ao fluxo client-side de
+// upload → parse → review → registro.
+export default async function Page() {
   const courses = await getMyCourses();
-  return <CreateSubjectForm courses={courses} />;
+  return <NewSubjectPage courses={courses} />;
 }

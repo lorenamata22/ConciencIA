@@ -94,6 +94,8 @@ describe('FileService', () => {
         {
           fileId: 'file-id-1',
           institutionId,
+          subjectId: 'subject-id-1',
+          topicId: null,
           fileUrl: 'https://storage/aula-01.pdf',
           fileName: 'aula-01.pdf',
           replaceExisting: false,

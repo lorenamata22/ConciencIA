@@ -10,6 +10,7 @@ import {
   ModalErrorIcon,
   ModalWarningIcon,
 } from '@/components/ui/feedback-modal';
+import { RagCoverageModal } from './rag-coverage-modal';
 
 type ModalState =
   | { phase: 'idle' }
@@ -71,6 +72,7 @@ export function DocumentationBrowser({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState>({ phase: 'idle' });
+  const [coverageOpen, setCoverageOpen] = useState(false);
 
   const activeSubject =
     activeSubjectId && activeSubjectId !== 'all'
@@ -184,6 +186,21 @@ export function DocumentationBrowser({
             </svg>
             Actualizar
           </button>
+
+          {/* Só dentro de uma matéria: a sonda é por matéria (§7.1) */}
+          {activeSubject && (
+            <button
+              type="button"
+              onClick={() => setCoverageOpen(true)}
+              className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border border-brand-border text-brand-brown hover:bg-brand-border/30 transition-colors"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 11l3 3L22 4" />
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </svg>
+              Verificar cobertura
+            </button>
+          )}
 
           {canUpload && (
             <button
@@ -429,6 +446,13 @@ export function DocumentationBrowser({
           </div>
         }
       />
+
+      {coverageOpen && activeSubject && (
+        <RagCoverageModal
+          subjectId={activeSubject.id}
+          onClose={() => setCoverageOpen(false)}
+        />
+      )}
     </div>
   );
 }

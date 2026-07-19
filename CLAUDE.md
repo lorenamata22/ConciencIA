@@ -132,8 +132,8 @@ Module              id, subject_id, name, order
 Topic               id, module_id, title, description, order
 Topic_Progress      id, student_id, topic_id, status, total_time, updated_at
 File                id, institution_id, subject_id?, topic_id?, name, type, document_type, url, size, is_ai_context, ingestion_status, created_at
-Embedding           id, file_id, chunk_text, embedding_vector, metadata, created_at
-Conversation        id, student_id, subject_id, topic_id?, created_at
+Embedding           id, file_id, institution_id, subject_id?, topic_id?, module_id?, chunk_text, embedding_vector, metadata, created_at
+Conversation        id, student_id, subject_id, topic_id, created_at
 Message             id, conversation_id, role, content, prompt_tokens, response_tokens, created_at
 Conversation_Summary  id, conversation_id, summary, created_at
 Exam                id, student_id, subject_id, topic_id, exam_type, exam_content_json, student_answers_json, final_score, execution_time, result_summary, created_at, completed_at
@@ -175,9 +175,24 @@ activity_type:          (livre — definido pelo professor)
 
 O RAG é o módulo mais crítico do sistema. Siga estas regras sem exceção:
 
-1. **Isolamento por tenant**: toda query de embedding no pgvector deve incluir `WHERE file.institution_id = $institutionId`. Nunca busque embeddings sem este filtro.
+1. **Isolamento por tenant + escopo de tópico**: `Embedding` carrega `institution_id`, `subject_id` e `topic_id` **denormalizados** de `File` (embeddings são imutáveis — sem custo de sincronização e sem JOIN no caminho quente). Toda query de embedding deve filtrar por `institution_id` **e** pelo escopo:
 
-2. **Somente arquivos marcados**: apenas arquivos com `is_ai_context = true` entram no pipeline de ingestão.
+   ```sql
+   WHERE e.institution_id = $institutionId
+     AND (
+       e.topic_id = $topicId
+       OR (e.subject_id = $subjectId AND e.topic_id IS NULL)
+     )
+   ```
+
+   Regra de escopo:
+   - Arquivo com `topic_id` → específico daquele tópico
+   - Arquivo só com `subject_id` (`topic_id IS NULL`) → vale para **todos** os tópicos da matéria
+   - Arquivo só com `institution_id` (upload geral, sem subject/topic) → **não entra** no RAG do chat (senão PDF de História aparece no chat de Matemática)
+
+   Exceção — **Modo Exame**: busca por matéria inteira (`e.subject_id = $subjectId`, sem `topicId`) — comportamento intencional, não afrouxa o `institution_id`.
+
+2. **Somente arquivos marcados**: apenas arquivos com `is_ai_context = true` entram no pipeline de ingestão. O **programa de asignatura** (ementa) **não** entra no pipeline: não vira `File`, não gera `Embedding`, não vai ao storage. É parseado no import de matéria, revisado e descartado — seu texto vive apenas em `Topic.description` como contexto de escopo (ver §8 e §14). O material de ensino real (PDFs de aula) é outro fluxo, e só ele alimenta o RAG.
 
 3. **Pipeline de ingestão** (executado via fila BullMQ após upload):
    - Upload → extração de texto → chunking (400–800 tokens com overlap) → geração de embedding → inserção em `Embedding` com metadados
@@ -185,12 +200,14 @@ O RAG é o módulo mais crítico do sistema. Siga estas regras sem exceção:
 4. **Metadados obrigatórios por chunk**: `institution_id`, `file_id`, `subject_id`, `topic_id`, `module_id`, `document_name`
 
 5. **Pipeline de busca** (a cada mensagem do aluno):
-   - Gerar embedding da pergunta → buscar top 3–5 chunks por similaridade (filtro por `institution_id`) → incluir chunks no prompt
+   - Gerar embedding da pergunta → buscar top 3–5 chunks por similaridade (filtro por `institution_id` + escopo de tópico, ver regra 1) → incluir chunks no prompt
 
 6. **Re-indexação**: ao substituir um arquivo com `is_ai_context = true`, **deletar todos os embeddings antigos** antes de processar a nova versão. Feito de forma assíncrona via BullMQ.
 
 7. **Fallback**: se não houver contexto suficiente, a IA responde com conhecimento geral e **deve sinalizar isso ao usuário** na resposta.
    - **Exceção — Modo Exame**: não há fallback. Gerar prova sem material do professor quebraria a regra de prioridade de contexto. Retrieval vazio → `422 "Tópico sem material de contexto para gerar exame"`.
+
+> **Nota — Post-filtering do HNSW.** O índice HNSW busca os vizinhos mais próximos e **depois** aplica o `WHERE`. Com filtro seletivo (tópico específico numa base com muitas instituições), você pode pedir top 5 e receber menos — silenciosamente, sem erro. Com poucas instituições isto é invisível. Se começar a aparecer: primeiro remédio é aumentar `hnsw.ef_search`; o definitivo é iterative index scan (pgvector 0.8+). **Fase 2 — não implementar preventivamente.**
 
 ---
 
@@ -204,14 +221,16 @@ O aluno seleciona a matéria antes de iniciar. A cada mensagem, o prompt contém
 
 ```
 [System]   Prompt do Modo Estudo — assistente educacional, adaptar ao perfil cognitivo
-[Context]  Top 3–5 chunks do RAG relevantes (filtro por institution_id + subject_id)
+[Scope]    Topic.description (ementa) do tópico em foco — guardrail de escopo, injetado direto
+[Context]  Top 3–5 chunks do RAG relevantes (filtro por institution_id + escopo de tópico, ver §7.1)
 [Profile]  Perfil cognitivo do aluno (Student.cognitive_profile)
 [History]  Resumo das últimas 5–10 mensagens (Conversation_Summary)
 [User]     Mensagem atual do aluno
 ```
 
+- `Topic.description` é **contexto de escopo**, não substância: injetado direto (não vem do RAG), delimita "fique dentro disto". A substância continua vindo dos chunks do RAG (material do professor)
 - Histórico **resumido** (não completo)
-- Persistência isolada por matéria
+- Persistência isolada por **tópico** (`Conversation.topic_id` obrigatório — cada tópico é uma sessão de aula)
 - Usa **streaming** — SSE (Server-Sent Events) no NestJS
 
 ### Modo Exame (quiz estruturado)
@@ -296,6 +315,7 @@ O aluno só pode se cadastrar fornecendo um `license_code` válido. O sistema va
 ## 12. Regras de Negócio Inegociáveis
 
 - RAG sempre filtrado por `institution_id` — sem exceção
+- RAG sempre filtrado por escopo de tópico/matéria (chat: escopo de tópico; exame: matéria inteira) — ver §7.1
 - Aluno só se cadastra com `license_code` válido
 - `institution_id` vem sempre do JWT, nunca do body
 - Tópico só marcado como `completed` após o aluno concluir um exame `main` do tópico; `retry` não marca; o status nunca regride
@@ -342,9 +362,10 @@ Upload (teacher/institution) → validar is_ai_context
 
 ### Chat Modo Estudo
 ```
-Aluno seleciona matéria → extrair institution_id do JWT
-→ buscar top 3–5 chunks no pgvector (filtro institution_id + subject_id)
-→ buscar cognitive_profile do aluno
+Aluno seleciona matéria + tópico → extrair institution_id do JWT
+→ retomar/criar Conversation por (student, subject, topic) — topic_id obrigatório
+→ buscar top 3–5 chunks no pgvector (filtro institution_id + escopo de tópico, ver §7.1)
+→ buscar cognitive_profile do aluno + Topic.description (contexto de escopo, injetado direto)
 → buscar resumo das últimas 5–10 mensagens (Conversation_Summary)
 → montar prompt Modo Estudo → chamar IA via streaming (SSE)
 → salvar Message → atualizar AI_Usage
@@ -386,13 +407,30 @@ Validar exame pertence ao aluno + tenant; não concluído; todas as questões re
 
 **AlertModule** ("múltiplas tentativas no mesmo tópico"): conta linhas de `Exam` por `topic_id` (suportado pelo índice `[student_id, topic_id]`); `exam_type` fica disponível para ponderação.
 
-### Importação via Template .docx
+### Criação de Matéria — Import do Programa de Asignatura
+O cadastro de matéria **não** é CRUD manual de tópicos: é upload do programa (ementa) → parse por IA → review → persistência transacional.
+
 ```
-Professor faz upload do template .docx preenchido
-→ parser extrai estrutura: módulos → tópicos → conteúdo
-→ criar registros de Module e Topic na base
-→ conteúdo de cada tópico disponível como contexto para a IA
+Institution: Curso + Nome + upload do programa (PDF ou DOCX, ≤ 1MB)
+→ POST /subjects/program/parse (SEM :id — a matéria ainda não existe)
+   → officeparser extrai texto → numerar linhas → verificar limite de tokens
+   → chamada única (structured output): IA devolve títulos + ponteiros de linha
+     (title_line, content_start_line/end nullable) — NUNCA reproduz o conteúdo
+   → validar ranges em código → 1 retry da chamada → depois 422
+   → backend fatia o texto original pelos ranges → Topic.description (verbatim)
+   → calcular cobertura e linhas órfãs (advisory) → registrar AI_Usage
+   → retornar estrutura {modules, coverage, orphan_lines}. NADA é persistido
+→ frontend segura o resultado em estado local; usuário edita no review
+→ POST /subjects (body = estrutura já editada): transação única
+   → criar Subject → Modules (order = índice) → Topics (order = índice)
+   → falha em qualquer ponto → rollback total
 ```
+
+- O programa **não vira `File`**, não vai ao storage, não gera `Embedding` (§7). Parseia, devolve, descarta.
+- `Topic.description` recebe a ementa como **contexto de escopo** (§8), não substância de ensino.
+- `order` de Module/Topic deriva do índice do array — não é campo do schema da IA.
+- Sem tabela de draft: o parse não persiste nada; se o usuário fechar a aba, re-upa.
+- Module/Topic também têm CRUD (`POST/GET /modules`, `POST/GET /topics`) para criação avulsa e edição posterior; o import apenas os cria em lote. `GET /topics?module_id=` alimenta o dropdown "Temario" do Modo Exame.
 
 ### Student Registration
 ```
@@ -578,6 +616,8 @@ POST /files (upload) → salvar arquivo no storage → salvar File no banco
 interface RagIngestionJob {
   fileId: string;
   institutionId: string;
+  subjectId: string | null; // denormalizado em Embedding (escopo de matéria)
+  topicId: string | null;   // denormalizado em Embedding (escopo de tópico)
   fileUrl: string;
   fileName: string;
   replaceExisting: boolean; // true quando é substituição de arquivo

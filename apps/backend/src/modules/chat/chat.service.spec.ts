@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException } from '@nestjs/common';
-import { ChatService } from './chat.service';
+import { ChatService, STUDY_TOP_K } from './chat.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { createPrismaMock, PrismaMock } from '../../prisma/prisma-mock';
 import { createAIProviderMock } from '../ai-provider/ai-provider.mock';
@@ -44,6 +44,10 @@ describe('ChatService', () => {
       ingestFile: jest.fn(),
     } as any;
 
+    // Stream vazio por padrão — testes que checam o texto gerado sobrescrevem.
+    // Generator síncrono: `for await` também consome iteráveis síncronos.
+    aiProviderMock.stream.mockImplementation(function* () {} as any);
+
     aiUsageServiceMock = {
       register: jest.fn().mockResolvedValue({}),
       hasAvailableTokens: jest.fn().mockResolvedValue(true),
@@ -74,6 +78,13 @@ describe('ChatService', () => {
       id: 'conv-id-1',
       student_id: studentId,
       subject_id: 'subject-id-1',
+      topic_id: 'topic-id-1',
+      subject: { name: 'Matemáticas' },
+      topic: {
+        id: 'topic-id-1',
+        title: 'Ecuaciones de primer grado',
+        description: 'Ementa del tema',
+      },
     } as any);
     prismaMock.conversationSummary.findFirst.mockResolvedValue(null);
     prismaMock.message.findMany.mockResolvedValue([]);
@@ -103,6 +114,92 @@ describe('ChatService', () => {
   });
 
   describe('sendStudyMessage', () => {
+    it('should search RAG scoped to the conversation topic and inject Topic.description in the prompt', async () => {
+      mockConversationContext();
+      ragServiceMock.search.mockResolvedValue({
+        chunks: [],
+        hasSufficientContext: false,
+      } as any);
+
+      let capturedSystem = '';
+      aiProviderMock.stream.mockImplementation(function* (opts: any) {
+        capturedSystem = opts.system;
+        return;
+        yield '';
+      } as any);
+
+      await service.sendStudyMessage(
+        { conversation_id: 'conv-id-1', content: 'Hola' },
+        userId,
+        institutionId,
+      );
+
+      // Busca RAG recebe o topic_id da conversa (escopo de tópico, §7.1)
+      expect(ragServiceMock.search).toHaveBeenCalledWith(
+        expect.objectContaining({
+          institutionId,
+          subjectId: 'subject-id-1',
+          topicId: 'topic-id-1',
+        }),
+      );
+      // Topic.description entra no prompt como guardrail de escopo
+      expect(capturedSystem).toContain('Ámbito del tema');
+      expect(capturedSystem).toContain('Ementa del tema');
+    });
+
+    // Fase 1 do escopo por tópico: como os materiais são subject-wide
+    // (topic_id NULL), a âncora de tópico tem que estar na QUERY, senão
+    // "explícame esto" busca no material da matéria inteira sem direção.
+    it('should anchor the RAG query with the topic title and description', async () => {
+      mockConversationContext();
+
+      await service.sendStudyMessage(
+        { conversation_id: 'conv-id-1', content: '¿Cómo se despeja la x?' },
+        userId,
+        institutionId,
+      );
+
+      const { query } = ragServiceMock.search.mock.calls[0][0];
+      expect(query).toContain('Ecuaciones de primer grado');
+      expect(query).toContain('Ementa del tema');
+      // A pergunta do aluno continua sendo o sinal mais forte
+      expect(query).toContain('¿Cómo se despeja la x?');
+    });
+
+    it('should use only the student message as query when the topic has no title or description', async () => {
+      mockConversationContext();
+      prismaMock.conversation.findUnique.mockResolvedValue({
+        id: 'conv-id-1',
+        student_id: studentId,
+        subject_id: 'subject-id-1',
+        topic_id: 'topic-id-1',
+        subject: { name: 'Matemáticas' },
+        topic: { id: 'topic-id-1', title: null, description: null },
+      } as any);
+
+      await service.sendStudyMessage(
+        { conversation_id: 'conv-id-1', content: '¿Cómo se despeja la x?' },
+        userId,
+        institutionId,
+      );
+
+      expect(ragServiceMock.search.mock.calls[0][0].query).toBe(
+        '¿Cómo se despeja la x?',
+      );
+    });
+
+    it('should request a wider top K than the RAG default to compensate the subject-wide corpus', async () => {
+      mockConversationContext();
+
+      await service.sendStudyMessage(
+        { conversation_id: 'conv-id-1', content: 'Hola' },
+        userId,
+        institutionId,
+      );
+
+      expect(ragServiceMock.search.mock.calls[0][0].topK).toBe(STUDY_TOP_K);
+    });
+
     it('should build prompt with RAG context, cognitive profile and conversation summary', async () => {
       mockConversationContext();
       prismaMock.conversationSummary.findFirst.mockResolvedValue({

@@ -10,6 +10,30 @@ describe('buildStudyModeSystemPrompt', () => {
     isMinor: false,
   };
 
+  it('should include the topic scope block (Topic.description) when provided', () => {
+    const prompt = buildStudyModeSystemPrompt({
+      ...baseParams,
+      topicDescription: 'Lectura y escritura de números; comparación y orden.',
+    });
+    expect(prompt).toContain('Ámbito del tema');
+    expect(prompt).toContain('Lectura y escritura de números');
+  });
+
+  it('should not break and omit the scope block when Topic.description is empty', () => {
+    const emptyProm = buildStudyModeSystemPrompt({
+      ...baseParams,
+      topicDescription: '   ',
+    });
+    const nullProm = buildStudyModeSystemPrompt({
+      ...baseParams,
+      topicDescription: null,
+    });
+    expect(emptyProm).not.toContain('Ámbito del tema');
+    expect(nullProm).not.toContain('Ámbito del tema');
+    // Modo Estudo segue funcionando (bloco de rol sempre presente)
+    expect(nullProm).toContain('# Rol');
+  });
+
   it('should include numbered RAG chunks when context is sufficient', () => {
     const prompt = buildStudyModeSystemPrompt({
       ...baseParams,

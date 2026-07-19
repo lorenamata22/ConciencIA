@@ -65,11 +65,14 @@ describe('ChatController', () => {
       const result = await controller.getConversation(
         user as any,
         'subject-id-1',
+        'topic-id-1',
       );
 
       expect(conversationServiceMock.resumeOrCreateByUser).toHaveBeenCalledWith(
         'user-id-1',
+        'inst-id-1',
         'subject-id-1',
+        'topic-id-1',
       );
       expect(messageServiceMock.findByConversation).toHaveBeenCalledWith(
         'conv-id-1',
@@ -82,7 +85,21 @@ describe('ChatController', () => {
 
     it('should throw BadRequestException when subject_id is missing', async () => {
       await expect(
-        controller.getConversation(user as any, undefined as any),
+        controller.getConversation(
+          user as any,
+          undefined as any,
+          'topic-id-1',
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when topic_id is missing', async () => {
+      await expect(
+        controller.getConversation(
+          user as any,
+          'subject-id-1',
+          undefined as any,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });

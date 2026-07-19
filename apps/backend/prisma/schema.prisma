@@ -269,6 +269,14 @@ model File {
 model Embedding {
   id               String                       @id @default(uuid())
   file_id          String
+  // Denormalizados de File na ingestão (embeddings são imutáveis — sem custo de
+  // sincronização): filtro de escopo de tópico sem JOIN no caminho quente (§7.1).
+  // module_id é hedge para um eventual escopo por módulo — hoje não entra no
+  // filtro (a busca é por tópico), só é gravado.
+  institution_id   String
+  subject_id       String?
+  topic_id         String?
+  module_id        String?
   chunk_text       String
   // Dimensão 1024 — gemini-embedding-001 com outputDimensionality: 1024 (MRL)
   // Índice HNSW criado via migration raw SQL — não remover:
@@ -280,6 +288,8 @@ model Embedding {
   file File @relation(fields: [file_id], references: [id])
 
   @@index([file_id])
+  // Índice de filtro de escopo (btree) — complementa o HNSW do vetor
+  @@index([institution_id, subject_id, topic_id])
   @@map("embedding")
 }
 
@@ -287,12 +297,13 @@ model Conversation {
   id         String   @id @default(uuid())
   student_id String
   subject_id String
-  topic_id   String?
+  // NOT NULL: cada tópico é uma sessão de aula — o histórico fragmenta por tópico (§8)
+  topic_id   String
   created_at DateTime @default(now())
 
   student   Student               @relation(fields: [student_id], references: [id])
   subject   Subject               @relation(fields: [subject_id], references: [id])
-  topic     Topic?                @relation(fields: [topic_id], references: [id])
+  topic     Topic                 @relation(fields: [topic_id], references: [id])
   messages  Message[]
   summaries ConversationSummary[]
   ai_usages AIUsage[]

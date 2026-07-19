@@ -117,6 +117,8 @@ export class FileService {
     const job: RagIngestionJob = {
       fileId: file.id,
       institutionId: file.institution_id,
+      subjectId: file.subject_id,
+      topicId: file.topic_id,
       fileUrl: file.url,
       fileName: file.name,
       replaceExisting,
