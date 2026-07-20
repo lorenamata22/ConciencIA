@@ -22,6 +22,8 @@ export async function loginAction(
 ): Promise<LoginState> {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
+  // "Guardar mi sesión iniciada" — decide se os cookies sobrevivem ao fechar o browser
+  const rememberMe = formData.get('rememberMe') === 'true';
 
   if (!email || !password) {
     return { error: 'Preencha e-mail e senha.' };
@@ -34,11 +36,11 @@ export async function loginAction(
   }
 
   const { accessToken, refreshToken, name } = result.data;
-  await createSession(accessToken, refreshToken);
+  const { persisted } = await createSession(accessToken, refreshToken, rememberMe);
 
   // Salva o nome para exibição na tela de boas-vindas
   if (name) {
-    await saveUserName(name);
+    await saveUserName(name, persisted);
   }
 
   redirect('/welcome');
@@ -108,8 +110,8 @@ export async function completeRegistrationAction(
   }
 
   const { accessToken, refreshToken } = result.data;
-  await createSession(accessToken, refreshToken);
-  await saveUserName(name);
+  const { persisted } = await createSession(accessToken, refreshToken);
+  await saveUserName(name, persisted);
 
   redirect('/welcome');
 }

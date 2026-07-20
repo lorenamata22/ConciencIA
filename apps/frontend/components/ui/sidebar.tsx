@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState, useTransition } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { logoutAction } from '@/app/actions/auth';
 import { formatFirstName } from '@/lib/utils/user';
 
@@ -258,15 +258,15 @@ function formatDisplayName(fullName: string, userType: string): string {
 
 export function Sidebar({ userName, userType }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const role = userType as UserType;
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function handleLogout() {
-    startTransition(async () => {
-      await logoutAction();
-      router.push('/login');
+    // logoutAction já redireciona para /login — um push aqui corre contra
+    // o redirect da action e pode abortar a navegação no meio
+    startTransition(() => {
+      void logoutAction();
     });
   }
 

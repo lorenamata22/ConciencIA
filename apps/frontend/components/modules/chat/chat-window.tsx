@@ -1,119 +1,97 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useChatStream } from "@/lib/hooks/use-chat-stream";
-import type { SubjectItem } from "@/lib/api/subject";
-import { getExamOutline } from "@/lib/api/exams";
-import type { ExamModuleOutline } from "@/types/exam";
 import { MessageList } from "./message-list";
 import { ChatInput } from "./chat-input";
-import { LearningModeSelector } from "@/components/ui/learning-mode-selector";
-import { InlineSubjectSelect } from "@/components/ui/inline-subject-select";
-import { InlineTopicSelect } from "@/components/ui/inline-topic-select";
+import { CHAT_TEXT } from "./chat.constants";
 
+// Janela do chat. Não tem mais seletor de tópico: o tópico é escolhido no stage
+// anterior e trocado pelo CTA "Cambiar temario", que devolve ao stage.
 export function ChatWindow({
-  subjects,
   subjectId,
   topicId,
-  onSubjectChange,
-  onTopicChange,
+  subjectName,
+  topicTitle,
+  studentName,
+  onChangeTopic,
 }: {
-  subjects: SubjectItem[];
   subjectId: string;
   topicId: string;
-  onSubjectChange: (subjectId: string) => void;
-  onTopicChange: (topicId: string) => void;
+  subjectName: string;
+  topicTitle: string;
+  studentName: string;
+  onChangeTopic: () => void;
 }) {
   const { messages, loading, streaming, error, loadConversation, send } =
     useChatStream();
-
-  const [modules, setModules] = useState<ExamModuleOutline[]>([]);
-  const [loadingTopics, setLoadingTopics] = useState(false);
-
-  // Temario da matéria — alimenta o seletor de tópico no header
-  useEffect(() => {
-    let active = true;
-    setLoadingTopics(true);
-    getExamOutline(subjectId)
-      .then((outline) => {
-        if (active) setModules(outline);
-      })
-      .catch(() => {
-        if (active) setModules([]);
-      })
-      .finally(() => {
-        if (active) setLoadingTopics(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [subjectId]);
 
   // Cada (matéria, tópico) é uma conversa distinta — trocar qualquer um recarrega
   useEffect(() => {
     void loadConversation(subjectId, topicId);
   }, [subjectId, topicId, loadConversation]);
 
-  const topicTitle =
-    modules
-      .flatMap((module) => module.topics)
-      .find((topic) => topic.id === topicId)?.title ?? "";
-
   return (
-    <div className="flex h-full flex-col px-10 pt-10 pb-16 md:px-30">
-      {/* Header: pill de modo à esquerda, cascade matéria + tópico centralizada */}
-      <div className="grid grid-cols-3 items-center">
-        <div className="justify-self-start">
-          <LearningModeSelector mode="study" subjectId={subjectId} />
-        </div>
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden pt-14">
+      {/* Saudação com matéria + tópico em foco */}
+      <h1 className="mb-10 text-center text-3xl font-medium leading-snug text-brand-label">
+        {CHAT_TEXT.greeting(studentName)}
+        <br />
+        {CHAT_TEXT.greetingTopic(subjectName, topicTitle)}
+      </h1>
 
-        <div className="flex items-center gap-3 justify-self-center">
-          <InlineSubjectSelect
-            subjects={subjects}
-            selectedId={subjectId}
-            onChange={onSubjectChange}
-          />
-          <span className="text-brand-brown/30" aria-hidden="true">
-            /
-          </span>
-          <InlineTopicSelect
-            modules={modules}
-            selectedId={topicId}
-            onChange={onTopicChange}
-            loading={loadingTopics}
-          />
+      {loading ? (
+        <div className="flex flex-1 items-center justify-center text-sm text-brand-placeholder">
+          {CHAT_TEXT.loadingConversation}
         </div>
+      ) : (
+        <MessageList messages={messages} streaming={streaming} />
+      )}
+
+      {error && (
+        <p className="mb-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
+          {error}
+        </p>
+      )}
+
+      <div className="my-6 flex justify-center">
+        <button
+          type="button"
+          onClick={onChangeTopic}
+          className="flex items-center gap-2.5 rounded-lg bg-primary px-7 py-3.5 text-base font-medium text-primary-text transition-colors hover:bg-primary-hover"
+        >
+          <TopicIcon />
+          {CHAT_TEXT.changeTopic}
+        </button>
       </div>
 
-      {/* Corpo: título do tópico enquanto vazio; mensagens quando houver */}
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden">
-        {loading ? (
-          <div className="flex flex-1 items-center justify-center text-sm text-brand-placeholder">
-            Cargando conversación…
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center">
-            <h1 className="text-center text-3xl font-semibold text-brand-brown">
-              {topicTitle}
-            </h1>
-          </div>
-        ) : (
-          <MessageList messages={messages} streaming={streaming} />
-        )}
-
-        {error && (
-          <p className="mb-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
-            {error}
-          </p>
-        )}
-
-        <div className="pb-2">
-          <ChatInput
-            onSend={(content) => void send(content)}
-            disabled={streaming || loading}
-          />
-        </div>
+      <div className="pb-2">
+        <ChatInput
+          onSend={(content) => void send(content)}
+          disabled={streaming || loading}
+        />
       </div>
     </div>
+  );
+}
+
+function TopicIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+      <path d="M9 7h7" />
+      <path d="M9 11h5" />
+    </svg>
   );
 }

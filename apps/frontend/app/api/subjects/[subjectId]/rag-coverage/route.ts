@@ -7,15 +7,18 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 // o client nunca chama o backend direto.
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ subjectId: string }> },
 ) {
-  const { id } = await params;
+  const { subjectId } = await params;
   const token = (await cookies()).get("accessToken")?.value ?? "";
 
-  const response = await fetch(`${API_URL}/subjects/me/${id}/rag-coverage`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
+  const response = await fetch(
+    `${API_URL}/subjects/me/${subjectId}/rag-coverage`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    },
+  );
 
   return Response.json(await response.json(), { status: response.status });
 }

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ExamPage } from "./exam-page";
+import { ExamBody } from "./exam-body";
 import { EssayInput } from "./essay-input";
 import { ExamActions } from "./exam-actions";
 import { OptionButton } from "./option-button";
@@ -35,10 +35,6 @@ jest.mock("@/lib/api/exams", () => {
 const mockedGetOutline = jest.mocked(getExamOutline);
 const mockedGenerateExam = jest.mocked(generateExam);
 const mockedSubmitAnswers = jest.mocked(submitExamAnswers);
-
-const subjects = [
-  { id: "subject-1", name: "Matemáticas", course: { id: "c1", name: "Curso" } },
-];
 
 const outline: ExamModuleOutline[] = [
   {
@@ -335,9 +331,9 @@ describe("Exam result", () => {
 
 function renderExamPage() {
   return render(
-    <ExamPage
-      subjects={subjects}
-      initialSubjectId="subject-1"
+    <ExamBody
+      subjectId="subject-1"
+      subjectName="Matemáticas"
       studentName="Lorena"
     />,
   );

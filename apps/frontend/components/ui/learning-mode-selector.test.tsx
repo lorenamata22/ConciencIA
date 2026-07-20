@@ -31,7 +31,7 @@ describe("LearningModeSelector", () => {
     );
     expect(mockPush).not.toHaveBeenCalled();
 
-    act(() => jest.advanceTimersByTime(460));
+    act(() => jest.advanceTimersByTime(600));
     expect(mockPush).toHaveBeenCalledWith("/student/exam?subjectId=math-1");
   });
 
@@ -39,7 +39,7 @@ describe("LearningModeSelector", () => {
     render(<LearningModeSelector mode="exam" />);
     fireEvent.click(screen.getByRole("switch", { name: "Modo Examen" }));
 
-    act(() => jest.advanceTimersByTime(460));
+    act(() => jest.advanceTimersByTime(600));
     expect(mockPush).toHaveBeenCalledWith("/student");
   });
 });

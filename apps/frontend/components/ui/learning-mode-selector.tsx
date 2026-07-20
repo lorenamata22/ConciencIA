@@ -10,9 +10,14 @@ const MODE_TRANSITION_MS = 600;
 export function LearningModeSelector({
   mode,
   subjectId,
+  onChange,
 }: {
   mode: LearningMode;
   subjectId?: string;
+  // Controlado: se fornecido, alterna o modo no lugar (sem navegar) — usado
+  // quando estudo e exame vivem sob o mesmo header persistente. Sem ele, mantém
+  // o comportamento antigo de navegar entre /student e /student/exam.
+  onChange?: (mode: LearningMode) => void;
 }) {
   const router = useRouter();
   const [visualMode, setVisualMode] = useState(mode);
@@ -34,12 +39,19 @@ export function LearningModeSelector({
     if (navigationTimer.current) return;
 
     const nextMode: LearningMode = examMode ? "study" : "exam";
+    setVisualMode(nextMode);
+
+    // Modo controlado: troca o corpo no lugar, o estado do timer sobrevive
+    if (onChange) {
+      onChange(nextMode);
+      return;
+    }
+
     const pathname = nextMode === "exam" ? "/student/exam" : "/student";
     const href = subjectId
       ? `${pathname}?subjectId=${encodeURIComponent(subjectId)}`
       : pathname;
 
-    setVisualMode(nextMode);
     navigationTimer.current = setTimeout(() => {
       navigationTimer.current = null;
       router.push(href);

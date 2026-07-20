@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { ChatScreen } from "./chat-screen";
+import { StudentLearningScreen } from "@/components/modules/student/student-learning-screen";
 import { getExamOutline } from "@/lib/api/exams";
 import { getConversation } from "@/lib/api/chat";
 import type { ExamModuleOutline } from "@/types/exam";
@@ -17,6 +17,7 @@ jest.mock("remark-gfm", () => ({ __esModule: true, default: () => {} }));
 
 jest.mock("@/lib/api/exams", () => ({ getExamOutline: jest.fn() }));
 jest.mock("@/lib/api/chat", () => ({ getConversation: jest.fn() }));
+jest.mock("@/lib/pomodoro/bell", () => ({ playBell: jest.fn() }));
 
 const mockedOutline = jest.mocked(getExamOutline);
 const mockedConversation = jest.mocked(getConversation);
@@ -75,70 +76,109 @@ beforeEach(() => {
   );
 });
 
-function chooseSubject(label: string) {
-  // Abre o ObjectSelect da matéria (mostra o placeholder ou a matéria atual)
-  fireEvent.click(screen.getByText(/elegir asignatura|matemáticas|historia/i));
-  fireEvent.mouseDown(screen.getByText(label));
+function renderScreen() {
+  return render(
+    <StudentLearningScreen subjects={subjects} studentName="Lorena" />,
+  );
 }
 
-describe("Chat — cascade matéria → tópico", () => {
-  it("keeps the topic selector disabled until a subject is chosen", () => {
-    render(<ChatScreen subjects={subjects} />);
-    expect(screen.getByLabelText("Seleccionar tema")).toBeDisabled();
-  });
+async function chooseTopic(title: string) {
+  await waitFor(() =>
+    expect(screen.getByLabelText("Seleccionar tema")).toBeEnabled(),
+  );
+  fireEvent.click(screen.getByLabelText("Seleccionar tema"));
+  fireEvent.click(screen.getByText(title));
+}
 
-  it("does not open the chat until a topic is selected", async () => {
-    render(<ChatScreen subjects={subjects} />);
-    chooseSubject("Matemáticas");
+function changeSubject(name: string) {
+  fireEvent.click(screen.getByRole("button", { name: /matemáticas|historia/i }));
+  fireEvent.click(screen.getByRole("button", { name }));
+}
 
-    // Temario carrega, mas sem tópico o botão "Empezar" segue desabilitado
+describe("Chat — stage de seleção de tópico", () => {
+  it("should show the topic stage for the current subject", async () => {
+    renderScreen();
+
+    expect(screen.getByText("¿Empezamos con Matemáticas?")).toBeInTheDocument();
+    // A matéria vive só no header — não há dropdown de matéria no corpo
+    expect(screen.queryByText("Elegir asignatura")).not.toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByLabelText("Seleccionar tema")).toBeEnabled(),
     );
-    expect(screen.getByRole("button", { name: "Empezar" })).toBeDisabled();
-    // Continua na tela de seleção
-    expect(screen.getByText("¿Qué estudiamos hoy?")).toBeInTheDocument();
   });
 
-  it("clears the topic selection when the subject changes", async () => {
-    render(<ChatScreen subjects={subjects} />);
-    chooseSubject("Matemáticas");
-
-    await waitFor(() =>
-      expect(screen.getByLabelText("Seleccionar tema")).toBeEnabled(),
-    );
-    fireEvent.click(screen.getByLabelText("Seleccionar tema"));
-    fireEvent.click(screen.getByText("Tema Uno"));
-    expect(screen.getByRole("button", { name: "Empezar" })).toBeEnabled();
-
-    // Troca a matéria → tópico limpo → "Empezar" volta a desabilitar
-    chooseSubject("Historia");
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Empezar" })).toBeDisabled(),
-    );
-  });
-
-  it("loads the history of the selected topic and does not mix topics", async () => {
-    render(<ChatScreen subjects={subjects} />);
-    chooseSubject("Matemáticas");
+  it("should keep Confirmar disabled until a topic is selected", async () => {
+    renderScreen();
 
     await waitFor(() =>
       expect(screen.getByLabelText("Seleccionar tema")).toBeEnabled(),
     );
-    fireEvent.click(screen.getByLabelText("Seleccionar tema"));
-    fireEvent.click(screen.getByText("Tema Uno"));
-    fireEvent.click(screen.getByRole("button", { name: "Empezar" }));
+    expect(screen.getByRole("button", { name: "Confirmar" })).toBeDisabled();
 
-    // Entrou no chat com o histórico do tópico t1
+    await chooseTopic("Tema Uno");
+    expect(screen.getByRole("button", { name: "Confirmar" })).toBeEnabled();
+  });
+
+  it("should open the chat with the selected topic history after confirming", async () => {
+    renderScreen();
+    await chooseTopic("Tema Uno");
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
     expect(await screen.findByText("Historial de t1")).toBeInTheDocument();
     expect(mockedConversation).toHaveBeenCalledWith("s1", "t1");
+    expect(
+      screen.queryByRole("button", { name: "Confirmar" }),
+    ).not.toBeInTheDocument();
+  });
 
-    // Troca de tópico no header → carrega o histórico de t2, sem misturar
-    fireEvent.click(screen.getByLabelText("Seleccionar tema"));
-    fireEvent.click(screen.getByText("Tema Dos"));
+  it("should not render a topic select inside the chat", async () => {
+    renderScreen();
+    await chooseTopic("Tema Uno");
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+
+    await screen.findByText("Historial de t1");
+    expect(screen.queryByLabelText("Seleccionar tema")).not.toBeInTheDocument();
+  });
+
+  it("should return to the topic stage from the chat via Cambiar temario", async () => {
+    renderScreen();
+    await chooseTopic("Tema Uno");
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    await screen.findByText("Historial de t1");
+
+    fireEvent.click(screen.getByRole("button", { name: /cambiar temario/i }));
+
+    expect(screen.getByText("¿Empezamos con Matemáticas?")).toBeInTheDocument();
+    expect(screen.queryByText("Historial de t1")).not.toBeInTheDocument();
+  });
+
+  it("should reload the conversation when a different topic is confirmed", async () => {
+    renderScreen();
+    await chooseTopic("Tema Uno");
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    await screen.findByText("Historial de t1");
+
+    fireEvent.click(screen.getByRole("button", { name: /cambiar temario/i }));
+    await chooseTopic("Tema Dos");
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
 
     expect(await screen.findByText("Historial de t2")).toBeInTheDocument();
     expect(screen.queryByText("Historial de t1")).not.toBeInTheDocument();
     expect(mockedConversation).toHaveBeenCalledWith("s1", "t2");
+  });
+
+  it("should return to the topic stage when the subject changes in the header", async () => {
+    renderScreen();
+    await chooseTopic("Tema Uno");
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    await screen.findByText("Historial de t1");
+
+    changeSubject("Historia");
+
+    expect(
+      await screen.findByText("¿Empezamos con Historia?"),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(mockedOutline).toHaveBeenCalledWith("s2"));
+    expect(screen.getByRole("button", { name: "Confirmar" })).toBeDisabled();
   });
 });

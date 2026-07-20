@@ -18,24 +18,50 @@ export function parseJwtPayload(token: string): SessionPayload | null {
   }
 }
 
-export async function createSession(accessToken: string, refreshToken: string) {
+const REFRESH_MAX_AGE = 60 * 60 * 24 * 7; // 7 dias — mesmo que JWT_REFRESH_EXPIRES_IN
+
+// O accessToken é sempre cookie de sessão: a validade real dele é o `exp` do JWT,
+// que o proxy verifica a cada request. Quem carrega a decisão de "guardar sesión"
+// é o refreshToken — com maxAge ele sobrevive ao fechar do browser, sem maxAge não.
+// Devolve a persistência efetivamente aplicada — pode ser menor que a pedida
+// (ver shouldPersist). Quem grava outros cookies da sessão deve usar este retorno,
+// não o rememberMe cru, para não divergir da regra.
+export async function createSession(
+  accessToken: string,
+  refreshToken: string,
+  rememberMe = true,
+): Promise<{ persisted: boolean }> {
   const cookieStore = await cookies();
 
-  cookieStore.set('accessToken', accessToken, {
+  const base = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'lax' as const,
     path: '/',
-    maxAge: 60 * 15, // 15 minutos — mesmo que JWT_ACCESS_EXPIRES_IN
-  });
+  };
+
+  const persisted = shouldPersist(accessToken, rememberMe);
+
+  cookieStore.set('accessToken', accessToken, base);
 
   cookieStore.set('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7, // 7 dias — mesmo que JWT_REFRESH_EXPIRES_IN
+    ...base,
+    ...(persisted ? { maxAge: REFRESH_MAX_AGE } : {}),
   });
+
+  return { persisted };
+}
+
+// Contas administrativas não ganham sessão persistente: elas gerenciam turmas,
+// notas e usuários, então morrem ao fechar o browser mesmo que o usuário tenha
+// marcado "guardar sesión". Token ilegível cai no lado seguro (não persiste).
+const NON_PERSISTENT_ROLES = new Set(['super_admin', 'institution']);
+
+function shouldPersist(accessToken: string, rememberMe: boolean): boolean {
+  if (!rememberMe) return false;
+  const payload = parseJwtPayload(accessToken);
+  if (!payload) return false;
+  return !NON_PERSISTENT_ROLES.has(payload.userType);
 }
 
 export async function getSession(): Promise<SessionPayload | null> {
@@ -52,15 +78,16 @@ export async function deleteSession() {
   cookieStore.delete('userName');
 }
 
-// Salva o nome do usuário em cookie não-httpOnly para leitura na tela de boas-vindas
-export async function saveUserName(name: string) {
+// Salva o nome do usuário em cookie não-httpOnly para leitura na tela de boas-vindas.
+// Acompanha a persistência do refreshToken para não sobreviver à sessão.
+export async function saveUserName(name: string, rememberMe = true) {
   const cookieStore = await cookies();
   cookieStore.set('userName', name, {
     httpOnly: false,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7,
+    ...(rememberMe ? { maxAge: REFRESH_MAX_AGE } : {}),
   });
 }
 

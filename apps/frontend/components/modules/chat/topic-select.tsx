@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ExamModuleOutline } from "@/types/exam";
+import { CHAT_TEXT } from "./chat.constants";
 
-// Dropdown boxed de tópico (tela de seleção do chat), agrupado por módulo.
-// Desabilitado até escolher matéria; mostra "Cargando temario..." enquanto busca.
+// Dropdown boxed de tópico (stage de seleção do chat), agrupado por módulo.
+// Mostra "Cargando temario..." enquanto busca o temario da matéria.
 export function ChatTopicSelect({
   modules,
   selectedId,
@@ -40,7 +41,7 @@ export function ChatTopicSelect({
 
   const label = loading
     ? "Cargando temario..."
-    : (selectedTitle ?? "Elegir tema");
+    : (selectedTitle ?? CHAT_TEXT.topicPlaceholder);
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -50,16 +51,16 @@ export function ChatTopicSelect({
         disabled={disabled || loading}
         aria-expanded={open}
         aria-label="Seleccionar tema"
-        className={`flex w-full items-center justify-between gap-2 rounded-xl border px-4 py-3 text-left text-sm transition-colors ${
+        className={`flex h-[54px] w-full items-center justify-between gap-2 rounded-2xl border bg-white px-5 text-left text-base shadow-sm transition-colors ${
           open ? "border-brand-border-focus" : "border-brand-border"
-        } ${selectedTitle ? "text-brand-brown" : "text-brand-placeholder"} disabled:cursor-not-allowed disabled:opacity-50`}
+        } ${selectedTitle ? "text-brand-label" : "text-brand-placeholder"} disabled:cursor-not-allowed disabled:opacity-60`}
       >
         <span className="truncate">{label}</span>
         <ChevronIcon open={open} />
       </button>
 
       {open && !disabled && !loading && (
-        <div className="absolute top-full z-50 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-brand-border bg-brand-bg py-2 shadow-lg">
+        <div className="absolute top-full z-50 mt-2 max-h-80 w-full overflow-y-auto rounded-2xl border border-brand-border bg-white py-2 shadow-lg">
           {modules.length === 0 ? (
             <p className="px-4 py-2.5 text-sm text-brand-placeholder">
               No hay temas disponibles.

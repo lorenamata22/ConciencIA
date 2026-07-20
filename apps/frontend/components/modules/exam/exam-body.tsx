@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { SubjectItem } from "@/lib/api/subject";
 import {
   ExamApiError,
   generateExam,
@@ -15,8 +14,6 @@ import type {
   GeneratedExam,
   StudentExamAnswer,
 } from "@/types/exam";
-import { InlineSubjectSelect } from "@/components/ui/inline-subject-select";
-import { LearningModeSelector } from "@/components/ui/learning-mode-selector";
 import { TopicSelector } from "./topic-selector";
 import { ExamProgress } from "./exam-progress";
 import { QuestionCard } from "./question-card";
@@ -33,22 +30,19 @@ type ExamStage =
   | "result"
   | "error";
 
-export function ExamPage({
-  subjects,
-  initialSubjectId,
+// Corpo do Modo Exame (sem header — o header vive no StudentLearningScreen).
+// A matéria vem por prop; trocá-la (via header) reinicia o fluxo do exame.
+export function ExamBody({
+  subjectId,
+  subjectName,
   studentName,
 }: {
-  subjects: SubjectItem[];
-  initialSubjectId?: string;
+  subjectId: string;
+  subjectName: string;
   studentName: string;
 }) {
-  const firstSubjectId =
-    subjects.find((subject) => subject.id === initialSubjectId)?.id ??
-    subjects[0]?.id ??
-    "";
-  const [subjectId, setSubjectId] = useState(firstSubjectId);
   const [outline, setOutline] = useState<ExamModuleOutline[]>([]);
-  const [outlineLoading, setOutlineLoading] = useState(Boolean(firstSubjectId));
+  const [outlineLoading, setOutlineLoading] = useState(Boolean(subjectId));
   const [selectedTopicId, setSelectedTopicId] = useState("");
   const [stage, setStage] = useState<ExamStage>("selecting_topic");
   const [exam, setExam] = useState<GeneratedExam | null>(null);
@@ -58,6 +52,7 @@ export function ExamPage({
   const [error, setError] = useState<string | null>(null);
   const submittingRef = useRef(false);
 
+  // Trocar de matéria reinicia o exame por completo e recarrega o temario
   useEffect(() => {
     if (!subjectId) {
       setOutline([]);
@@ -68,6 +63,11 @@ export function ExamPage({
     let active = true;
     setOutlineLoading(true);
     setSelectedTopicId("");
+    setStage("selecting_topic");
+    setExam(null);
+    setResult(null);
+    setAnswers({});
+    setCurrentQuestionIndex(0);
     setError(null);
     void getExamOutline(subjectId)
       .then((modules) => {
@@ -88,8 +88,6 @@ export function ExamPage({
     };
   }, [subjectId]);
 
-  const subjectName =
-    subjects.find((subject) => subject.id === subjectId)?.name ?? "";
   const selectedTopic = useMemo(
     () =>
       outline
@@ -106,16 +104,6 @@ export function ExamPage({
       ? Boolean(currentAnswer?.selected_option_id)
       : Boolean(currentAnswer?.essay_text?.trim())
     : false;
-
-  function resetForSubject(nextSubjectId: string) {
-    setSubjectId(nextSubjectId);
-    setStage("selecting_topic");
-    setExam(null);
-    setResult(null);
-    setAnswers({});
-    setCurrentQuestionIndex(0);
-    setError(null);
-  }
 
   async function startExam(type: "main" | "retry", sourceExamId?: string) {
     if (!selectedTopicId) return;
@@ -201,130 +189,112 @@ export function ExamPage({
   }
 
   return (
-    <div className="flex h-full flex-col pt-10 px-10 md:px-30 pb-16">
-      <header className="grid grid-cols-3 items-center">
-        <div className="justify-self-start">
-          <LearningModeSelector mode="exam" subjectId={subjectId} />
+    <main className="mx-auto flex w-full max-w-[712px] flex-1 flex-col pt-14 lg:pt-36">
+      <h1 className="mb-16 text-center text-3xl font-medium text-brand-label sm:text-4xl">
+        {subjectName}: {EXAM_TEXT.titleSuffix}
+      </h1>
+
+      {stage === "selecting_topic" && (
+        <div className="flex flex-col items-center">
+          {error && <ErrorBanner message={error} />}
+          <TopicSelector
+            modules={outline}
+            selectedTopicId={selectedTopicId}
+            loading={outlineLoading}
+            onSelect={setSelectedTopicId}
+            onConfirm={() => void startExam("main")}
+          />
         </div>
+      )}
 
-        <div className="justify-self-center">
-          {subjectId && (
-            <InlineSubjectSelect
-              subjects={subjects}
-              selectedId={subjectId}
-              onChange={resetForSubject}
-            />
-          )}
+      {(stage === "generating" || stage === "submitting") && (
+        <LoadingState stage={stage} />
+      )}
+
+      {stage === "error" && error && (
+        <div className="flex flex-col items-center">
+          <ErrorBanner message={error} />
+          <button
+            type="button"
+            onClick={() => setStage("selecting_topic")}
+            className="mt-6 rounded-xl bg-primary px-7 py-3 font-semibold text-primary-text"
+          >
+            {EXAM_TEXT.tryAgain}
+          </button>
         </div>
-      </header>
+      )}
 
-      <main className="mx-auto flex w-full max-w-[712px] flex-1 flex-col pt-14 lg:pt-36">
-        <h1 className="mb-16 text-center text-3xl font-medium text-brand-label sm:text-4xl">
-          {subjectName}: {EXAM_TEXT.titleSuffix}
-        </h1>
-
-        {stage === "selecting_topic" && (
-          <div className="flex flex-col items-center">
-            {error && <ErrorBanner message={error} />}
-            <TopicSelector
-              modules={outline}
-              selectedTopicId={selectedTopicId}
-              loading={outlineLoading}
-              onSelect={setSelectedTopicId}
-              onConfirm={() => void startExam("main")}
+      {stage === "answering" && exam && currentQuestion && (
+        <div>
+          <p className="mb-10 text-base leading-snug text-brand-label">
+            {EXAM_TEXT.introduction(studentName)}
+          </p>
+          <ExamProgress
+            current={currentQuestionIndex + 1}
+            total={exam.questions.length}
+          />
+          <div className="mt-12">
+            <QuestionCard
+              question={currentQuestion}
+              questionNumber={currentQuestionIndex + 1}
+              selectedOption={currentAnswer?.selected_option_id}
+              essayText={currentAnswer?.essay_text ?? ""}
+              onOptionChange={updateOption}
+              onEssayChange={updateEssay}
             />
           </div>
-        )}
-
-        {(stage === "generating" || stage === "submitting") && (
-          <LoadingState stage={stage} />
-        )}
-
-        {stage === "error" && error && (
-          <div className="flex flex-col items-center">
-            <ErrorBanner message={error} />
+          {error && (
+            <div className="mt-5">
+              <ErrorBanner message={error} />
+            </div>
+          )}
+          <div className="mt-7 flex justify-end">
             <button
               type="button"
-              onClick={() => setStage("selecting_topic")}
-              className="mt-6 rounded-xl bg-primary px-7 py-3 font-semibold text-primary-text"
+              onClick={() => void advanceQuestion()}
+              disabled={!canAdvance || submittingRef.current}
+              className="min-w-[298px] rounded-lg bg-primary px-8 py-3.5 text-base font-semibold text-primary-text transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {EXAM_TEXT.tryAgain}
+              {EXAM_TEXT.submitAnswer}
             </button>
           </div>
-        )}
+        </div>
+      )}
 
-        {stage === "answering" && exam && currentQuestion && (
-          <div>
-            <p className="mb-10 text-base leading-snug text-brand-label">
-              {EXAM_TEXT.introduction(studentName)}
-            </p>
-            <ExamProgress
-              current={currentQuestionIndex + 1}
-              total={exam.questions.length}
-            />
-            <div className="mt-12">
-              <QuestionCard
-                question={currentQuestion}
-                questionNumber={currentQuestionIndex + 1}
-                selectedOption={currentAnswer?.selected_option_id}
-                essayText={currentAnswer?.essay_text ?? ""}
-                onOptionChange={updateOption}
-                onEssayChange={updateEssay}
+      {stage === "result" && result && (
+        <div className="pb-10">
+          <ResultSummary
+            result={result}
+            concept={selectedTopic?.title ?? subjectName}
+          />
+          <h2 className="mb-8 mt-12 text-base font-medium text-brand-label">
+            {EXAM_TEXT.reviewTitle}
+          </h2>
+          <div className="flex flex-col gap-2">
+            {result.questions.map((question, index) => (
+              <QuestionReview
+                key={question.id}
+                question={question}
+                number={index + 1}
               />
-            </div>
-            {error && (
-              <div className="mt-5">
-                <ErrorBanner message={error} />
-              </div>
-            )}
-            <div className="mt-7 flex justify-end">
-              <button
-                type="button"
-                onClick={() => void advanceQuestion()}
-                disabled={!canAdvance || submittingRef.current}
-                className="min-w-[298px] rounded-lg bg-primary px-8 py-3.5 text-base font-semibold text-primary-text transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {EXAM_TEXT.submitAnswer}
-              </button>
-            </div>
+            ))}
           </div>
-        )}
-
-        {stage === "result" && result && (
-          <div className="pb-10">
-            <ResultSummary
-              result={result}
-              concept={selectedTopic?.title ?? subjectName}
+          {error && (
+            <div className="mt-5">
+              <ErrorBanner message={error} />
+            </div>
+          )}
+          <div className="mt-20">
+            <ExamActions
+              hasErrors={result.final_score < result.total_questions}
+              loading={false}
+              onRetry={() => void startExam("retry", result.exam_id)}
+              onViewNotes={handleViewNotes}
             />
-            <h2 className="mb-8 mt-12 text-base font-medium text-brand-label">
-              {EXAM_TEXT.reviewTitle}
-            </h2>
-            <div className="flex flex-col gap-2">
-              {result.questions.map((question, index) => (
-                <QuestionReview
-                  key={question.id}
-                  question={question}
-                  number={index + 1}
-                />
-              ))}
-            </div>
-            {error && (
-              <div className="mt-5">
-                <ErrorBanner message={error} />
-              </div>
-            )}
-            <div className="mt-20">
-              <ExamActions
-                hasErrors={result.final_score < result.total_questions}
-                loading={false}
-                onRetry={() => void startExam("retry", result.exam_id)}
-                onViewNotes={handleViewNotes}
-              />
-            </div>
           </div>
-        )}
-      </main>
-    </div>
+        </div>
+      )}
+    </main>
   );
 }
 
