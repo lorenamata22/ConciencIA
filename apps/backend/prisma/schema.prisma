@@ -193,6 +193,7 @@ model Subject {
   teacherSubjects TeacherSubject[]
   events          Event[]
   tasks           Task[]
+  notes           Note[]
 
   @@map("subject")
 }
@@ -222,6 +223,7 @@ model Topic {
   conversations   Conversation[]
   exams           Exam[]
   events          Event[]
+  notes           Note[]
 
   @@map("topic")
 }
@@ -322,6 +324,7 @@ model Message {
 
   conversation Conversation @relation(fields: [conversation_id], references: [id])
   favorites    Favorite[]
+  notes        Note[]
 
   @@map("message")
 }
@@ -413,13 +416,27 @@ model AIUsage {
 }
 
 model Note {
-  id         String   @id @default(uuid())
+  id         String  @id @default(uuid())
   student_id String
+  subject_id String
+  topic_id   String
+  // Mensagem da IA que originou a nota — rastreabilidade, nullable (streaming pode não ter id ainda)
+  source_message_id String?
+  // Título da nota — deriva do título do tópico no momento do salvamento; editável pelo aluno
+  title      String
   content    String
-  created_at DateTime @default(now())
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  // Soft delete: preenchido ao mover para a lixeira; notas com deleted_at > 7 dias são purgadas
+  deleted_at DateTime?
 
   student Student @relation(fields: [student_id], references: [id])
+  subject Subject @relation(fields: [subject_id], references: [id])
+  topic   Topic   @relation(fields: [topic_id], references: [id])
+  message Message? @relation(fields: [source_message_id], references: [id])
 
+  @@index([student_id])
+  @@index([student_id, subject_id])
   @@map("note")
 }
 

@@ -27,6 +27,7 @@ import { AIUsageModule } from './modules/ai-usage/ai-usage.module';
 import { ExamModule } from './modules/exam/exam.module';
 import { TopicProgressModule } from './modules/topic-progress/topic-progress.module';
 import { StudentMetricsModule } from './modules/student-metrics/student-metrics.module';
+import { NoteModule } from './modules/note/note.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
@@ -73,6 +74,7 @@ import { GlobalExceptionFilter } from './common/filters/exception.filter';
     AIUsageModule,
     ExamModule,
     TopicProgressModule,
+    NoteModule,
     StudentMetricsModule,
   ],
   controllers: [AppController],

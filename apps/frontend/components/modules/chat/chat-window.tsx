@@ -23,8 +23,15 @@ export function ChatWindow({
   studentName: string;
   onChangeTopic: () => void;
 }) {
-  const { messages, loading, streaming, error, loadConversation, send } =
-    useChatStream();
+  const {
+    messages,
+    conversationId,
+    loading,
+    streaming,
+    error,
+    loadConversation,
+    send,
+  } = useChatStream();
 
   // Cada (matéria, tópico) é uma conversa distinta — trocar qualquer um recarrega
   useEffect(() => {
@@ -45,7 +52,11 @@ export function ChatWindow({
           {CHAT_TEXT.loadingConversation}
         </div>
       ) : (
-        <MessageList messages={messages} streaming={streaming} />
+        <MessageList
+          messages={messages}
+          streaming={streaming}
+          conversationId={conversationId}
+        />
       )}
 
       {error && (

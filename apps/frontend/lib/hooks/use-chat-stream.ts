@@ -126,5 +126,13 @@ export function useChatStream() {
     [conversationId, streaming],
   );
 
-  return { messages, loading, streaming, error, loadConversation, send };
+  return {
+    messages,
+    conversationId,
+    loading,
+    streaming,
+    error,
+    loadConversation,
+    send,
+  };
 }
