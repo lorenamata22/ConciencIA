@@ -30,7 +30,7 @@ type ExamStage =
   | "result"
   | "error";
 
-// Corpo do Modo Exame (sem header — o header vive no StudentLearningScreen).
+// Corpo do Modo Exame (sem header — o header vive no StudentShell).
 // A matéria vem por prop; trocá-la (via header) reinicia o fluxo do exame.
 export function ExamBody({
   subjectId,

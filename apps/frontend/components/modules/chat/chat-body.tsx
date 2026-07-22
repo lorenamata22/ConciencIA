@@ -8,7 +8,7 @@ import { ChatWindow } from "./chat-window";
 
 type ChatStage = "selecting_topic" | "chatting";
 
-// Corpo do Chat Modo Estudo (sem header — o header vive no StudentLearningScreen).
+// Corpo do Chat Modo Estudo (sem header — o header vive no StudentShell).
 // Espelha o Modo Exame: escolha de tópico é um stage próprio, separado da janela.
 // Trocar de matéria (via header) reseta ao stage de seleção com o novo temario.
 export function ChatBody({

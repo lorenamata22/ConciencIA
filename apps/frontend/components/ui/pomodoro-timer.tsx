@@ -1,6 +1,7 @@
 "use client";
 
-import { usePomodoro, type PomodoroPhase } from "@/lib/hooks/use-pomodoro";
+import { type PomodoroPhase } from "@/lib/hooks/use-pomodoro";
+import { usePomodoroController } from "@/components/providers/pomodoro-provider";
 
 const PHASE_LABEL: Record<PomodoroPhase, string> = {
   focus: "Focus",
@@ -26,7 +27,7 @@ export function PomodoroTimer({
 }: {
   drainAnimation?: boolean;
 }) {
-  const timer = usePomodoro();
+  const timer = usePomodoroController();
   const { started, running, isBreak, progress } = timer;
 
   const label = `${PHASE_LABEL[timer.phase]}: ${formatTime(timer.secondsLeft)}`;

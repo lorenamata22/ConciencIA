@@ -1,8 +1,18 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { PomodoroTimer } from "./pomodoro-timer";
+import { PomodoroProvider } from "@/components/providers/pomodoro-provider";
 import { POMODORO_DURATIONS } from "@/lib/hooks/use-pomodoro";
 
 jest.mock("@/lib/pomodoro/bell", () => ({ playBell: jest.fn() }));
+
+// O timer agora lê seu estado do PomodoroProvider; envolvemos cada render nele
+function renderTimer(props?: { drainAnimation?: boolean }) {
+  return render(
+    <PomodoroProvider>
+      <PomodoroTimer {...props} />
+    </PomodoroProvider>,
+  );
+}
 
 function advanceSeconds(seconds: number) {
   act(() => {
@@ -18,7 +28,7 @@ describe("PomodoroTimer", () => {
   });
 
   it("shows a full 25:00 focus label idle with a start control", () => {
-    render(<PomodoroTimer />);
+    renderTimer();
     expect(screen.getByRole("timer")).toHaveAttribute(
       "aria-label",
       "Focus: 25:00",
@@ -29,7 +39,7 @@ describe("PomodoroTimer", () => {
   });
 
   it("counts down and exposes a pause control once started", () => {
-    render(<PomodoroTimer />);
+    renderTimer();
     fireEvent.click(screen.getByLabelText("Iniciar"));
     advanceSeconds(60);
 
@@ -41,7 +51,7 @@ describe("PomodoroTimer", () => {
   });
 
   it("reveals the skip control during a break and returns to focus", () => {
-    render(<PomodoroTimer />);
+    renderTimer();
     fireEvent.click(screen.getByLabelText("Iniciar"));
     advanceSeconds(POMODORO_DURATIONS.focus);
 
@@ -61,7 +71,7 @@ describe("PomodoroTimer", () => {
   });
 
   it("keeps the pill full when the drain animation is disabled", () => {
-    render(<PomodoroTimer drainAnimation={false} />);
+    renderTimer({ drainAnimation: false });
     fireEvent.click(screen.getByLabelText("Iniciar"));
     advanceSeconds(POMODORO_DURATIONS.focus / 2);
 

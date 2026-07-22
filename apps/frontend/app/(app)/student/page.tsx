@@ -1,30 +1,8 @@
-import { getStudentSubjects } from "@/lib/api/subject";
-import { getUserName } from "@/lib/session";
-import { formatFirstName } from "@/lib/utils/user";
-import { StudentLearningScreen } from "@/components/modules/student/student-learning-screen";
+import { StudentLearningBody } from "@/components/modules/student/student-learning-body";
 
-// Aprendizado do aluno — estudo e exame sob o mesmo header persistente (item
-// "Chat" da sidebar aponta para /student). ?mode=exam entra direto no exame
-// (usado pelo redirect de /student/exam); o padrão é o Modo Estudo.
-export default async function StudentLearningPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ subjectId?: string; mode?: string }>;
-}) {
-  const [subjects, userName, params] = await Promise.all([
-    getStudentSubjects(),
-    getUserName(),
-    searchParams,
-  ]);
-
-  return (
-    <div className="h-full">
-      <StudentLearningScreen
-        subjects={subjects}
-        initialSubjectId={params.subjectId}
-        initialMode={params.mode === "exam" ? "exam" : "study"}
-        studentName={formatFirstName(userName ?? "Estudiante")}
-      />
-    </div>
-  );
+// Aprendizado do aluno (Chat/Examen). Matéria, modo, header e Pomodoro vivem no
+// StudentShell (layout de /student); esta página só renderiza o corpo, que lê
+// modo + matéria do contexto. Deep-link ?mode=exam é adotado pelo shell.
+export default function StudentLearningPage() {
+  return <StudentLearningBody />;
 }

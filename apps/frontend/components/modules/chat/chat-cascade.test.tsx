@@ -1,11 +1,15 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { StudentLearningScreen } from "@/components/modules/student/student-learning-screen";
+import { StudentShell } from "@/components/modules/student/student-shell";
+import { StudentLearningBody } from "@/components/modules/student/student-learning-body";
+import { PomodoroProvider } from "@/components/providers/pomodoro-provider";
 import { getExamOutline } from "@/lib/api/exams";
 import { getConversation } from "@/lib/api/chat";
 import type { ExamModuleOutline } from "@/types/exam";
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: jest.fn() }),
+  usePathname: () => "/student",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 // react-markdown / remark-gfm são ESM puros — mockados para renderizar texto cru
@@ -76,9 +80,14 @@ beforeEach(() => {
   );
 });
 
+// Header (StudentShell) + corpo (StudentLearningBody) juntos, como no layout real
 function renderScreen() {
   return render(
-    <StudentLearningScreen subjects={subjects} studentName="Lorena" />,
+    <PomodoroProvider>
+      <StudentShell subjects={subjects} studentName="Lorena">
+        <StudentLearningBody />
+      </StudentShell>
+    </PomodoroProvider>,
   );
 }
 
