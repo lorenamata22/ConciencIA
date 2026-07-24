@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AlertService } from '../alert/alert.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
 
@@ -19,7 +24,10 @@ const CLASS_SELECT = {
 
 @Injectable()
 export class ClassService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly alertService: AlertService,
+  ) {}
 
   async findAllByInstitution(institutionId: string) {
     const classes = await this.prisma.class.findMany({
@@ -121,5 +129,55 @@ export class ClassService {
 
     await this.prisma.class.delete({ where: { id: classId } });
     return { deleted: true };
+  }
+
+  // Roster da turma para o professor, com status de risco derivado dos
+  // alertas não-resolvidos (getRiskStudentIds — uma query só).
+  // `subjectId` é reservado para escopar notas/atividades quando esses
+  // módulos existirem; hoje não altera o resultado.
+  async getStudents(
+    classId: string,
+    institutionId: string,
+    _subjectId?: string,
+  ) {
+    const klass = await this.prisma.class.findUnique({
+      where: { id: classId },
+      select: { course: { select: { institution_id: true } } },
+    });
+    if (!klass) {
+      throw new NotFoundException('Turma não encontrada');
+    }
+    if (klass.course.institution_id !== institutionId) {
+      throw new ForbiddenException('La clase no pertenece a tu institución');
+    }
+
+    const roster = await this.prisma.studentClass.findMany({
+      where: { class_id: classId },
+      select: {
+        student: {
+          select: {
+            id: true,
+            user: { select: { name: true, email: true } },
+          },
+        },
+      },
+    });
+    const students = roster.map((entry) => entry.student);
+
+    const riskIds = await this.alertService.getRiskStudentIds(
+      students.map((student) => student.id),
+      institutionId,
+    );
+
+    return students.map((student) => ({
+      id: student.id,
+      name: student.user.name,
+      email: student.user.email,
+      // TODO: módulo Notas (GradeTemplate/StudentGrade) ainda não existe
+      average_grade: null,
+      // TODO: módulo Atividades (Student_Activity) ainda não existe
+      tasks_delivered: null,
+      status: riskIds.has(student.id) ? 'at_risk' : 'stable',
+    }));
   }
 }

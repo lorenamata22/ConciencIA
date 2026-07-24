@@ -82,6 +82,14 @@ export class ChatService {
       institutionId,
     );
 
+    // Sinal de atividade pedagógica p/ alertas (fire-and-forget — não bloqueia)
+    void Promise.resolve(
+      this.prisma.student.update({
+        where: { id: student.id },
+        data: { last_activity_at: new Date() },
+      }),
+    ).catch(() => undefined);
+
     const { chunks, hasSufficientContext } = await this.searchRag(
       buildTopicAnchoredQuery(conversation.topic, input.content),
       institutionId,

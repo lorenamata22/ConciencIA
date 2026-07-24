@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTeacherClassDetail } from '@/lib/api/teacher';
 import { getStudentTaskGrades, type StudentTaskGrade } from '@/lib/api/task';
+import { getStudentAlerts } from '@/lib/api/alerts';
 import { getInitials } from '@/lib/utils/user';
+import { AlertCard } from '@/components/modules/alerts/alert-card';
 import { TeacherTasksTable } from './teacher-tasks-table';
 
 // Tareas entregues ("3/4") e nota media da matéria, a partir das notas do aluno
@@ -30,9 +32,10 @@ export default async function TeacherStudentDetailPage({
   params: Promise<{ classId: string; studentId: string }>;
 }) {
   const { classId, studentId } = await params;
-  const [detail, grades] = await Promise.all([
+  const [detail, grades, alerts] = await Promise.all([
     getTeacherClassDetail(classId),
     getStudentTaskGrades(studentId, classId),
+    getStudentAlerts(studentId),
   ]);
   const student = detail?.students.find((s) => s.id === studentId);
 
@@ -97,6 +100,13 @@ export default async function TeacherStudentDetailPage({
           );
         })}
       </div>
+
+      <AlertCard
+        alerts={alerts}
+        classId={classId}
+        studentId={studentId}
+        ownedSubjectIds={detail.subjects.map((s) => s.id)}
+      />
 
       <TeacherTasksTable
         subjects={detail.subjects}

@@ -2,11 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ClassService } from './class.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AlertService } from '../alert/alert.service';
 import { createPrismaMock, PrismaMock } from '../../prisma/prisma-mock';
 
 describe('ClassService', () => {
   let service: ClassService;
   let prismaMock: PrismaMock;
+  let alertServiceMock: { getRiskStudentIds: jest.Mock };
 
   const institutionId = 'inst-id-1';
 
@@ -22,11 +24,15 @@ describe('ClassService', () => {
 
   beforeEach(async () => {
     prismaMock = createPrismaMock();
+    alertServiceMock = {
+      getRiskStudentIds: jest.fn().mockResolvedValue(new Set<string>()),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ClassService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: AlertService, useValue: alertServiceMock },
       ],
     }).compile();
 
@@ -115,14 +121,73 @@ describe('ClassService', () => {
   });
 
   describe('getStudents', () => {
-    it('should return students of a class filtered by institution', async () => {
+    const withRoster = () => {
       prismaMock.class.findUnique.mockResolvedValue(mockClass as any);
       prismaMock.studentClass.findMany.mockResolvedValue([
-        { student_id: 'student-id-1', student: { id: 'student-id-1' } },
+        {
+          student: {
+            id: 'student-id-1',
+            user: { name: 'Ana', email: 'ana@x.com' },
+          },
+        },
+        {
+          student: {
+            id: 'student-id-2',
+            user: { name: 'Bob', email: 'bob@x.com' },
+          },
+        },
       ] as any);
+    };
+
+    it('should return students of a class filtered by institution with risk status', async () => {
+      withRoster();
+      alertServiceMock.getRiskStudentIds.mockResolvedValue(
+        new Set(['student-id-2']),
+      );
 
       const result = await service.getStudents('class-id-1', institutionId);
-      expect(result).toHaveLength(1);
+
+      expect(result).toEqual([
+        {
+          id: 'student-id-1',
+          name: 'Ana',
+          email: 'ana@x.com',
+          average_grade: null,
+          tasks_delivered: null,
+          status: 'stable',
+        },
+        {
+          id: 'student-id-2',
+          name: 'Bob',
+          email: 'bob@x.com',
+          average_grade: null,
+          tasks_delivered: null,
+          status: 'at_risk',
+        },
+      ]);
+      expect(alertServiceMock.getRiskStudentIds).toHaveBeenCalledWith(
+        ['student-id-1', 'student-id-2'],
+        institutionId,
+      );
+    });
+
+    it('should throw ForbiddenException when class belongs to another institution', async () => {
+      prismaMock.class.findUnique.mockResolvedValue({
+        ...mockClass,
+        course: { institution_id: 'other-inst' },
+      } as any);
+
+      await expect(
+        service.getStudents('class-id-1', institutionId),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException when class does not exist', async () => {
+      prismaMock.class.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getStudents('missing', institutionId),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

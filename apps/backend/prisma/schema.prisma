@@ -120,6 +120,10 @@ model Student {
   cognitive_profile   Json?
   cognitive_test_date DateTime?
   test_count          Int       @default(0)
+  // Atividade pedagógica (chat/exame) — sinal usado pelos alertas
+  last_activity_at    DateTime?
+  // Último login bem-sucedido — só para Analytics, não alimenta regra de alerta
+  last_login_at       DateTime?
 
   user            User             @relation(fields: [user_id], references: [id])
   studentClasses  StudentClass[]
@@ -379,19 +383,28 @@ model StudentMetrics {
 }
 
 model Alert {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   student_id     String
   institution_id String
   alert_type     String
   level          String
   description    String
-  resolved       Boolean  @default(false)
-  created_at     DateTime @default(now())
+  resolved       Boolean   @default(false)
+  // Escopo do alerta — preenchidos só em DIFFICULTY; null nos alertas globais
+  subject_id     String?
+  topic_id       String?
+  metadata       Json?
+  resolved_at    DateTime?
+  // null = auto-resolvido pelo sistema; preenchido = userId do professor
+  resolved_by    String?
+  created_at     DateTime  @default(now())
 
   student     Student     @relation(fields: [student_id], references: [id])
   institution Institution @relation(fields: [institution_id], references: [id])
 
   @@index([institution_id])
+  @@index([institution_id, resolved])
+  @@index([student_id, alert_type, resolved])
   @@map("alert")
 }
 

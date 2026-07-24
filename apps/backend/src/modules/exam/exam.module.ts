@@ -7,6 +7,7 @@ import { RagModule } from '../rag/rag.module';
 import { AIUsageModule } from '../ai-usage/ai-usage.module';
 import { TopicProgressModule } from '../topic-progress/topic-progress.module';
 import { StudentMetricsModule } from '../student-metrics/student-metrics.module';
+import { AlertModule } from '../alert/alert.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { StudentMetricsModule } from '../student-metrics/student-metrics.module'
     AIUsageModule,
     TopicProgressModule,
     StudentMetricsModule,
+    AlertModule,
   ],
   controllers: [ExamController],
   providers: [ExamService, PrismaService],

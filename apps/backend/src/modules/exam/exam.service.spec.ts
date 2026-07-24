@@ -14,6 +14,7 @@ import { RagService } from '../rag/rag.service';
 import { AIUsageService } from '../ai-usage/ai-usage.service';
 import { TopicProgressService } from '../topic-progress/topic-progress.service';
 import { StudentMetricsService } from '../student-metrics/student-metrics.service';
+import { AlertRulesService } from '../alert/alert-rules.service';
 import { ExamContent, StudentAnswer } from './schemas/exam-content.schema';
 import { EXAM_BLANK_ESSAY_FEEDBACK } from './exam.constants';
 import { AIResponseTruncatedError } from '../ai-provider/ai-provider.interface';
@@ -121,6 +122,7 @@ describe('ExamService', () => {
   };
   let topicProgressServiceMock: { markAsCompleted: jest.Mock };
   let studentMetricsServiceMock: { updateAfterExam: jest.Mock };
+  let alertRulesServiceMock: { evaluateDifficulty: jest.Mock };
 
   beforeEach(async () => {
     prismaMock = createPrismaMock();
@@ -142,6 +144,9 @@ describe('ExamService', () => {
     studentMetricsServiceMock = {
       updateAfterExam: jest.fn().mockResolvedValue(undefined),
     };
+    alertRulesServiceMock = {
+      evaluateDifficulty: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -152,6 +157,7 @@ describe('ExamService', () => {
         { provide: AIUsageService, useValue: aiUsageServiceMock },
         { provide: TopicProgressService, useValue: topicProgressServiceMock },
         { provide: StudentMetricsService, useValue: studentMetricsServiceMock },
+        { provide: AlertRulesService, useValue: alertRulesServiceMock },
       ],
     }).compile();
 

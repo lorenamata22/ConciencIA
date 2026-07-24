@@ -15,6 +15,7 @@ import { RagService } from '../rag/rag.service';
 import { AIUsageService } from '../ai-usage/ai-usage.service';
 import { TopicProgressService } from '../topic-progress/topic-progress.service';
 import { StudentMetricsService } from '../student-metrics/student-metrics.service';
+import { AlertRulesService } from '../alert/alert-rules.service';
 import {
   EXAM_BLANK_ESSAY_FEEDBACK,
   EXAM_CORRECTION_MAX_TOKENS,
@@ -73,6 +74,7 @@ export class ExamService {
     private readonly aiUsageService: AIUsageService,
     private readonly topicProgressService: TopicProgressService,
     private readonly studentMetricsService: StudentMetricsService,
+    private readonly alertRulesService: AlertRulesService,
   ) {}
 
   // ─── Geração (POST /exams) ────────────────────────────────────────────────
@@ -279,6 +281,22 @@ export class ExamService {
         exam.topic_id,
       );
     }
+
+    // Sinal de atividade pedagógica (fire-and-forget — não bloqueia a resposta)
+    void Promise.resolve(
+      this.prisma.student.update({
+        where: { id: student.id },
+        data: { last_activity_at: completedAt },
+      }),
+    ).catch(() => undefined);
+
+    // Avalia DIFFICULTY + auto-resolve (evento, depois de persistir o resultado)
+    await this.alertRulesService.evaluateDifficulty({
+      studentId: student.id,
+      topicId: exam.topic_id,
+      subjectId: exam.subject_id,
+      institutionId,
+    });
 
     return toResultDto({
       id: exam.id,

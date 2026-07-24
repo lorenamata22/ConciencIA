@@ -2,8 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import type { TeacherClassStudent } from '@/lib/api/teacher';
+import type { ClassStudent } from '@/lib/api/classes';
 import { getInitials } from '@/lib/utils/user';
+import { AlertStatusBadge } from '@/components/modules/alerts/alert-status-badge';
 
 const PAGE_SIZE = 8;
 
@@ -55,7 +56,7 @@ function Pagination({ page, total, onPage }: { page: number; total: number; onPa
   );
 }
 
-export function StudentsTable({ students, classId }: { students: TeacherClassStudent[]; classId: string }) {
+export function StudentsTable({ students, classId }: { students: ClassStudent[]; classId: string }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -95,19 +96,35 @@ export function StudentsTable({ students, classId }: { students: TeacherClassStu
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full table-fixed min-w-[720px]">
+        <table className="w-full table-fixed min-w-[560px]">
           <thead>
             <tr>
               <th scope="col" className="pl-6 pr-4 pt-3 pb-8 text-xs font-semibold text-brand-label tracking-wide uppercase text-left">Nombre</th>
               <th scope="col" className="px-4 pt-3 pb-8 text-xs font-semibold text-brand-label tracking-wide uppercase text-left">Nota media</th>
-              <th scope="col" className="px-4 pt-3 pb-8 text-xs font-semibold text-brand-label tracking-wide uppercase text-left">Asistencia</th>
+              {/*
+                TODO: Coluna ASISTENCIA — bloqueada.
+                Não existe entidade de presença/chamada no modelo de dados
+                (nem no PRD, nem na Technical Specification, nem no schema Prisma).
+                Exibir esta coluna exige um módulo novo: cadastro de aula dada,
+                marcação de presença por aluno e tela de chamada do professor.
+                Escopo comercial pendente — não implementar sem definição.
+
+                ⚠️ NÃO confundir com `guidance_need` do teste cognitivo.
+                `guidance_need` mede quanta orientação estruturada o aluno precisa
+                (LOW/MEDIUM/HIGH) e serve para adaptar o prompt do Modo Estudo.
+                Não tem relação com presença — os significados são opostos:
+                guidance_need alto = aluno que precisa de mais apoio;
+                asistencia alta = aluno presente e engajado.
+
+                <th>ASISTENCIA</th>
+              */}
               <th scope="col" className="pl-4 pr-6 pt-3 pb-8 text-xs font-semibold text-brand-label tracking-wide uppercase text-left">Estado</th>
             </tr>
           </thead>
           <tbody>
             {paginated.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-sm text-brand-placeholder border-t border-brand-border">
+                <td colSpan={3} className="px-6 py-12 text-center text-sm text-brand-placeholder border-t border-brand-border">
                   {search ? 'Ningún alumno coincide con la búsqueda.' : 'No hay alumnos en esta clase.'}
                 </td>
               </tr>
@@ -130,15 +147,11 @@ export function StudentsTable({ students, classId }: { students: TeacherClassStu
                     </div>
                   </td>
                   <td className="px-4 py-4 border-t border-brand-border">
-                    <span className="text-sm text-brand-brown">{student.averageGrade ?? '—'}</span>
+                    <span className="text-sm text-brand-brown">{student.average_grade ?? '—'}</span>
                   </td>
-                  <td className="px-4 py-4 border-t border-brand-border">
-                    <span className="text-sm text-brand-brown">
-                      {student.attendanceRate !== null ? `${student.attendanceRate}%` : '—'}
-                    </span>
-                  </td>
+                  {/* Coluna ASISTENCIA comentada — ver <thead> */}
                   <td className="pl-4 pr-6 py-4 border-t border-brand-border">
-                    <span className="text-sm text-brand-brown">{student.status ?? '—'}</span>
+                    <AlertStatusBadge status={student.status} />
                   </td>
                 </tr>
               ))

@@ -5,6 +5,7 @@ import {
   Patch,
   Delete,
   Param,
+  Query,
   Body,
   UseGuards,
 } from '@nestjs/common';
@@ -30,6 +31,17 @@ export class ClassController {
   @Get('me/:id/users')
   findUsers(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.classService.findUsersByClass(user.institutionId, id);
+  }
+
+  // Roster com status de risco — professor e instituição (override do @Roles)
+  @Get(':classId/students')
+  @Roles('teacher', 'institution')
+  getStudents(
+    @CurrentUser() user: JwtPayload,
+    @Param('classId') classId: string,
+    @Query('subject_id') subjectId?: string,
+  ) {
+    return this.classService.getStudents(classId, user.institutionId, subjectId);
   }
 
   @Post('me')

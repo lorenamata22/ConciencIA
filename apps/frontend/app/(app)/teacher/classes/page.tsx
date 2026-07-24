@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getMyTeacherClasses, getTeacherClassDetail } from '@/lib/api/teacher';
+import { getClassStudents } from '@/lib/api/classes';
 import { StudentsTable } from './students-table';
 
 function formatDate(dateStr: string) {
@@ -18,7 +19,11 @@ export default async function TeacherClassesPage({
   const { classId } = await searchParams;
   const classes = await getMyTeacherClasses();
   const activeClassId = classes.some((c) => c.id === classId) ? classId : classes[0]?.id;
-  const detail = activeClassId ? await getTeacherClassDetail(activeClassId) : null;
+  const [detail, roster] = activeClassId
+    ? await Promise.all([getTeacherClassDetail(activeClassId), getClassStudents(activeClassId)])
+    : [null, []];
+  // Contador "En riesgo" derivado do roster já carregado — sem chamada extra.
+  const atRiskCount = roster.filter((s) => s.status === 'at_risk').length;
   const lastUpdate = formatDate(new Date().toISOString());
 
   return (
@@ -93,7 +98,7 @@ export default async function TeacherClassesPage({
                   </div>
                   <div className="divider" />
                   <div className="text-center">
-                    <p className="text-2xl font-semibold text-red-500">{subject.atRiskCount ?? '—'}</p>
+                    <p className="text-2xl font-semibold text-amber-600">{atRiskCount}</p>
                     <p className="text-xs text-brand-label mt-1">En riesgo</p>
                   </div>
                 </div>
@@ -101,7 +106,7 @@ export default async function TeacherClassesPage({
             ))}
           </div>
 
-          {activeClassId && <StudentsTable students={detail?.students ?? []} classId={activeClassId} />}
+          {activeClassId && <StudentsTable students={roster} classId={activeClassId} />}
         </>
       )}
 

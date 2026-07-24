@@ -85,6 +85,17 @@ export class AuthService {
       );
     }
 
+    // Registra último login (requisito Analytics) — só alunos têm Student;
+    // fire-and-forget para não atrasar a emissão do token
+    if (user.user_type === 'student') {
+      void Promise.resolve(
+        this.prisma.student.updateMany({
+          where: { user_id: user.id },
+          data: { last_login_at: new Date() },
+        }),
+      ).catch(() => undefined);
+    }
+
     return this.issueTokens(user);
   }
 
